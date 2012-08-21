@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="hello">Hello World, Proxy5Activity!</string>
+    <string name="app_name">Proxy5</string>
+    <string name="start">START</string>
+    <string name="stop">STOP</string>
+    <string name="port">PORT</string>
+
+</resources>

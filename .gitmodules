@@ -1,0 +1,3 @@
+[submodule "jni/usertcp"]
+	path = jni/usertcp
+	url = https://github.com/pagxir/usertcp.git

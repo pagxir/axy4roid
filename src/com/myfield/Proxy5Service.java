@@ -1,13 +1,18 @@
 package com.myfield;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
 public class Proxy5Service extends Service {
+	private int PORT = 1800;
+	
 	static final String TAG = "PROXY5";
+	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
 
 	@Override
 	public IBinder onBind(Intent arg0) {
@@ -19,12 +24,17 @@ public class Proxy5Service extends Service {
 	public void onCreate() {
 		Log.i(TAG, "onCreate");
 		super.onCreate();
+		
+		SharedPreferences prefs = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE);
+		PORT = prefs.getInt("PORT", 1800);
+		AppFace.setPort(PORT);
 	}
 
 	@Override
 	public void onDestroy() {
 		Log.i(TAG, "onDestroy");
 		super.onDestroy();
+		AppFace.stop();
 	}
 
 	@Override

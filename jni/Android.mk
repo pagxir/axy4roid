@@ -23,7 +23,7 @@ LOCAL_SRC_FILES := $(USRV_OBJ) $(OBJECTS)
 include $(BUILD_EXECUTABLE)
 
 include $(CLEAR_VARS)
-LOCAL_MODULE := libusertcp
+LOCAL_MODULE := proxy5
 LOCAL_SRC_FILES := $(OBJECTS) appface.c
 LOCAL_LDLIBS    := -llog
 include $(BUILD_SHARED_LIBRARY)

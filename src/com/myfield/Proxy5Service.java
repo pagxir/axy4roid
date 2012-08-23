@@ -8,8 +8,11 @@ import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
 
-public class Proxy5Service extends Service {
+public class Proxy5Service extends Service implements Runnable {
 	private int PORT = 1800;
+	private Thread worker = null;
+	private boolean exited = true;
+	private boolean running = false;
 	
 	static final String TAG = "PROXY5";
 	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
@@ -27,14 +30,30 @@ public class Proxy5Service extends Service {
 		
 		SharedPreferences prefs = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE);
 		PORT = prefs.getInt("PORT", 1800);
-		AppFace.setPort(PORT);
+		
+		worker = new Thread(this);
+		exited = false;
+		running = true;
+		worker.start();
 	}
 
 	@Override
 	public void onDestroy() {
 		Log.i(TAG, "onDestroy");
 		super.onDestroy();
-		AppFace.stop();
+		
+		try {
+			exited = true;
+			worker.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		if (running) {
+			throw new RuntimeException("worker thread should not running.");
+		}
+		
+		worker = null;
 	}
 
 	@Override
@@ -42,5 +61,17 @@ public class Proxy5Service extends Service {
 		Log.i(TAG, "onStart");
 		super.onStart(intent, startId);
 	}
-}
 
+	@Override
+	public void run() {
+		AppFace.setPort(PORT);
+		AppFace.start();
+		
+		while (!exited) {
+			AppFace.loop();
+		}
+		
+		AppFace.stop();
+		running = false;
+	}
+}

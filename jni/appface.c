@@ -7,19 +7,33 @@
 #define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define  LOGE(...)  __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+int loop_proxy(void);
+int stop_proxy(void);
+int start_proxy(void);
+int proxy_setport(int port);
+
 static void setProxyPort(JNIEnv *env, jclass clazz, jint port)
 {
 	LOGE("call setProxyPort");
+	proxy_setport(port);
+}
+
+static void startProxy(JNIEnv *env, jclass clazz)
+{
+	LOGE("call startProxy");
+	start_proxy();
 }
 
 static void loopProxy(JNIEnv *env, jclass clazz)
 {
-	LOGE("call startProxy");
+	LOGE("call loopProxy");
+	loop_proxy();
 }
 
 static void stopProxy(JNIEnv *env, jclass clazz)
 {
 	LOGE("call stopProxy");
+	stop_proxy();
 }
 
 //定义目标类名称
@@ -28,6 +42,7 @@ static const char *className = "com/myfield/AppFace";
 //定义方法隐射关系
 static JNINativeMethod methods[] = {
 	{"setPort", "(I)V", (void*)setProxyPort},
+	{"start", "()V", (void*)startProxy},
 	{"loop", "()V", (void*)loopProxy},
 	{"stop", "()V", (void*)stopProxy},
 };

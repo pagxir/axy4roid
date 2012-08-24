@@ -30,8 +30,8 @@ extern "C" int start_proxy(void)
 	initialize_modules(modules_list);
 	slotwait_start();
 
-	waitcb_init(&_delack_timer, flush_delack, NULL);
-	callout_reset(&_delack_timer, 200);
+	waitcb_init(&_jni_timer, flush_delack, NULL);
+	callout_reset(&_jni_timer, 200);
 	return 0;
 }
 
@@ -48,3 +48,4 @@ extern "C" int stop_proxy(void)
 	cleanup_modules(modules_list);
 	return 0;
 }
+

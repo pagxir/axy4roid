@@ -207,7 +207,7 @@ int tcp_socks::run(void)
 				   	addr_in1.sin_port   = in_port1;
 				   	memcpy(&addr_in1.sin_addr, host->h_addr, 4);
 				   	error = connect(m_file, (sockaddr *)&addr_in1, sizeof(addr_in1));
-				   	if (error == -1 && WSAGetLastError() != WSAEWOULDBLOCK)
+				   	if (error == -1 && WSAGetLastError() != WSAEINPROGRESS)
 					   	return 0;
 
 					m_flags |= TF_CONNECT;
@@ -225,7 +225,7 @@ int tcp_socks::run(void)
 				addr_in1.sin_port   = in_port1;
 				addr_in1.sin_addr   = in_addr1;
 				error = connect(m_file, (sockaddr *)&addr_in1, sizeof(addr_in1));
-				if (error == -1 && WSAGetLastError() != WSAEWOULDBLOCK)
+				if (error == -1 && WSAGetLastError() != WSAEINPROGRESS)
 					return 0;
 
 				m_flags |= TF_CONNECT;

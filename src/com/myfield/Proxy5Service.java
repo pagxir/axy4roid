@@ -67,10 +67,12 @@ public class Proxy5Service extends Service implements Runnable {
 		AppFace.setPort(PORT);
 		AppFace.start();
 		
+		Log.i(TAG, "run prepare");
 		while (!exited) {
 			AppFace.loop();
 		}
 		
+		Log.i(TAG, "run finish");
 		AppFace.stop();
 		running = false;
 	}

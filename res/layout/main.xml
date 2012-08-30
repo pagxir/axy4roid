@@ -26,4 +26,10 @@
         android:layout_height="wrap_content"
         android:text="@string/stop" />
 
+    <TextView
+        android:id="@+id/networkaddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/address" />
+
 </LinearLayout>

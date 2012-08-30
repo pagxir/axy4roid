@@ -6,5 +6,6 @@
     <string name="start">START</string>
     <string name="stop">STOP</string>
     <string name="port">PORT</string>
+    <string name="address">Network Address</string>
 
 </resources>

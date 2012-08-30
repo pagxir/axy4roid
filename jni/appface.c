@@ -26,7 +26,6 @@ static void startProxy(JNIEnv *env, jclass clazz)
 
 static void loopProxy(JNIEnv *env, jclass clazz)
 {
-	LOGE("call loopProxy");
 	loop_proxy();
 }
 

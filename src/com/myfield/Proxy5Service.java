@@ -4,6 +4,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
 import android.widget.Toast;
@@ -17,10 +18,18 @@ public class Proxy5Service extends Service implements Runnable {
 	static final String TAG = "PROXY5";
 	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
 
+	private Proxy5Controler proxy5Controler = new Proxy5Controler();
+	public class Proxy5Controler extends Binder implements IProxy5Control {
+		@Override
+		public int getPort() {
+			return PORT;
+		}
+	}
+
 	@Override
 	public IBinder onBind(Intent arg0) {
 		Toast.makeText(this , "Hello World", Toast.LENGTH_SHORT);
-		return null;
+		return proxy5Controler;
 	}
 	
 	@Override

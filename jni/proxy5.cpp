@@ -44,6 +44,9 @@ extern "C" int loop_proxy(void)
 
 extern "C" int stop_proxy(void)
 {
+	slotwait_stop();
+	while(loop_proxy());
+
 	waitcb_clean(&_jni_timer);
 	cleanup_modules(modules_list);
 	return 0;

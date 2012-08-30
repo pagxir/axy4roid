@@ -15,6 +15,7 @@ static struct sockaddr_in _lenaddr;
 static struct waitcb _event, _runstart, _runstop;
 
 extern void new_tcp_socks(int tcpfd);
+extern void clean_tcp_socks(void);
 static void listen_statecb(void *ignore);
 static void listen_callback(void *context);
 
@@ -57,7 +58,6 @@ static void module_clean(void)
 	waitcb_clean(&_event);
 	waitcb_clean(&_runstop);
 	waitcb_clean(&_runstart);
-
 	fprintf(stderr, "tcp_listen: exiting\n");
 }
 

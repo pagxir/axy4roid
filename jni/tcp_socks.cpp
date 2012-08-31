@@ -27,11 +27,13 @@ class tcp_socks {
 
 	public:
 		int run(void);
+		static void tc_clean(void *context);
 		static void tc_callback(void *context);
 
 	private:
 		int m_file;
 		int m_flags;
+		struct waitcb m_stper;
 
 	private:
 		struct waitcb m_rwait;
@@ -66,20 +68,23 @@ tcp_socks::tcp_socks(int tcpfd)
 	m_woff = m_wlen = 0;
 	m_peer = sock_attach(tcpfd);
 	m_sockcbp = sock_attach(m_file);
+	waitcb_init(&m_stper, tc_clean, this);
 	waitcb_init(&m_rwait, tc_callback, this);
 	waitcb_init(&m_wwait, tc_callback, this);
 	waitcb_init(&r_evt_peer, tc_callback, this);
 	waitcb_init(&w_evt_peer, tc_callback, this);
+
+    slotwait_atstop(&m_stper);
 }
 
 tcp_socks::~tcp_socks()
 {
+	waitcb_clean(&m_stper);
 	waitcb_clean(&m_rwait);
 	waitcb_clean(&m_wwait);
 	waitcb_clean(&r_evt_peer);
 	waitcb_clean(&w_evt_peer);
 
-	fprintf(stderr, "tcp_socks::~tcp_socks\n");
 	sock_detach(m_sockcbp);
 	closesocket(m_file);
 	sock_detach(m_peer);
@@ -396,6 +401,15 @@ void tcp_socks::tc_callback(void *context)
 	}
    
 	return;
+}
+
+void tcp_socks::tc_clean(void *context)
+{
+	tcp_socks *chan;
+	chan = (tcp_socks *)context;
+
+    delete chan;
+    return;
 }
 
 void new_tcp_socks(int tcpfd)

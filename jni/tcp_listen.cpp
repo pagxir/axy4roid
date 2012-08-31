@@ -28,6 +28,7 @@ extern "C" int proxy_setport(int port)
 static void module_init(void)
 {
 	int error;
+	int optval = 1;
 
 	_lenaddr.sin_family = AF_INET;
 	_lenaddr.sin_port   = htons(_port);
@@ -39,6 +40,9 @@ static void module_init(void)
 
 	_lenfile = socket(AF_INET, SOCK_STREAM, 0);
 	assert(_lenfile != -1);
+
+	error = setsockopt(_lenfile, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	assert(error == 0);
 
 	error = bind(_lenfile, (struct sockaddr *)&_lenaddr, sizeof(_lenaddr));
 	assert(error == 0);

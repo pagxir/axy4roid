@@ -141,7 +141,7 @@ static void tc_callback(void *context)
 	if (waitcb_active(&ctxp->c.rwait) ||
 		waitcb_active(&ctxp->c.wwait) ||
 		waitcb_active(&ctxp->s.rwait) ||
-		waitcb_active(&ctxp->s.wwait))																									
+		waitcb_active(&ctxp->s.wwait))
 		return;
 
 	assert(0);
@@ -325,6 +325,7 @@ static int sockv5_proto_input(struct socksproto *up)
 		limit = up->c.buf + up->c.len;
 		p = up->c.buf + (up->c.buf[1] & 0xFF) + 2;
 		memmove(up->c.buf, p, limit - p);
+		up->c.len = (limit - p);
 		up->proto_flags |= AUTHED;
 	}
 

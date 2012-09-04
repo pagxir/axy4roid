@@ -10,3 +10,4 @@ public class AppFace {
 		System.loadLibrary("proxy5");
 	}
 }
+

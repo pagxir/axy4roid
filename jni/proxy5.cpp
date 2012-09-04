@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include "platform.h"
 
 #include "module.h"
@@ -26,6 +27,7 @@ static void flush_delack(void *up)
 
 extern "C" int start_proxy(void)
 {
+	signal(SIGPIPE, SIG_IGN);
 	slotwait_held(0);
 	initialize_modules(modules_list);
 	slotwait_start();
@@ -50,5 +52,15 @@ extern "C" int stop_proxy(void)
 	waitcb_clean(&_jni_timer);
 	cleanup_modules(modules_list);
 	return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    start_proxy();
+    for ( ;loop_proxy(); );
+	printf("EXITING\n");
+    stop_proxy();
+	printf("EXIT\n");
+    return 0;
 }
 

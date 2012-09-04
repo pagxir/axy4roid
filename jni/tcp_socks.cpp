@@ -9,6 +9,7 @@
 #include "slotwait.h"
 #include "slotsock.h"
 
+static void tc_cleanup(void *context);
 static void tc_callback(void *context);
 static int  socksproto_run(struct socksproto *up);
 
@@ -37,6 +38,7 @@ struct socksproto {
 	int respo_len;
 	int proto_flags;
 	struct waitcb timer;
+	struct waitcb stopper;
 	struct sockspeer c, s;
 	struct sockaddr_in addr_in1;
 };
@@ -65,6 +67,7 @@ static void socksproto_init(struct socksproto *up, int sockfd, int lwipfd)
 	up->respo_len = 0;
 	up->proto_flags = 0;
 	waitcb_init(&up->timer, tc_callback, up);
+	waitcb_init(&up->stopper, tc_cleanup, up);
 
 	up->c.fd = sockfd;
 	up->c.flags = 0;
@@ -78,6 +81,7 @@ static void socksproto_init(struct socksproto *up, int sockfd, int lwipfd)
 
 	up->s.fd = lwipfd;
 	assert(up->s.fd != -1);
+	slotwait_atstop(&up->stopper);
 
 	setnonblock(up->s.fd);
 	up->s.flags = 0;
@@ -94,6 +98,7 @@ static void socksproto_fini(struct socksproto *up)
 {
 	fprintf(stderr, "pstcp_socks::~pstcp_socks, %d\n", link_count);
 	waitcb_clean(&up->timer);
+	waitcb_clean(&up->stopper);
 
 	waitcb_clean(&up->s.rwait);
 	waitcb_clean(&up->s.wwait);
@@ -104,6 +109,19 @@ static void socksproto_fini(struct socksproto *up)
 	waitcb_clean(&up->c.wwait);
 	sock_detach(up->c.lwipcbp);
 	closesocket(up->c.fd);
+}
+
+static void tc_cleanup(void *context)
+{
+	struct socksproto *ctxp;
+
+	ctxp = (struct socksproto *)context;
+
+	link_count--;
+	socksproto_fini(ctxp);
+	free(context);
+
+	return;
 }
 
 struct socksproto *_header = NULL;

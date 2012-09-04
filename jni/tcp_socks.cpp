@@ -1,35 +1,13 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-
-#if 1
-#include "lwip/opt.h"
-#include "lwip/sys.h"
-#include "lwip/arch.h"
-#include "lwip/api.h"
-#include "lwip/sockets.h"
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-#else
-#include <winsock2.h>
-#define SHUT_WR SD_SEND
-#define EAGAIN WSAEWOULDBLOCK
-#define EINPROGRESS WSAEWOULDBLOCK
-#endif
+#include <stdlib.h>
+#include "platform.h"
 
 #include "module.h"
 #include "callout.h"
 #include "slotwait.h"
 #include "slotsock.h"
-#include "slotlwip.h"
-
-#if 0
-#define lwipcb sockcb
-#define lwip_detach sock_detach
-#define lwip_attach sock_attach
-#define lwip_read_wait sock_read_wait
-#define lwip_write_wait sock_write_wait
-#endif
 
 static void tc_callback(void *context);
 static int  socksproto_run(struct socksproto *up);
@@ -39,14 +17,23 @@ static int  socksproto_run(struct socksproto *up);
 
 static int link_count = 0;
 
+struct sockop {
+	int (*blocking)(int fd);
+	int (*op_read)(int fd, void *buf, size_t len);
+	int (*op_write)(int fd, const void *buf, size_t len);
+	int (*do_shutdown)(int fd, int mode);
+	int (*read_wait)(struct sockcb *cb, struct waitcb *call);
+	int (*write_wait)(struct sockcb *cb, struct waitcb *call);
+} winsock_ops;
+
 struct sockspeer {
 	int fd;
 	int off;
 	int len;
 	int flags;
 	char buf[8192];
-	void *lwipcbp;
 	struct sockop *ops;
+	struct sockcb *lwipcbp;
 	struct waitcb rwait;
 	struct waitcb wwait;
 
@@ -62,13 +49,6 @@ struct socksproto {
 	struct sockspeer c, s;
 	struct sockaddr_in addr_in1;
 };
-
-static void nonblock(int sockfd)
-{
-	int mode = 1;
-	ioctlsocket(sockfd, FIONBIO, &mode);
-	return;
-}
 
 int error_equal(int fd, int code)
 {
@@ -108,13 +88,13 @@ static void socksproto_init(struct socksproto *up, int sockfd, int lwipfd)
 	up->s.fd = lwipfd;
 	assert(up->s.fd != -1);
 
-	nonblock(up->s.fd);
+	setnonblock(up->s.fd);
 	up->s.flags = 0;
 	up->s.off = up->s.len = 0;
-	up->s.ops = &lwipsock_ops;
+	up->s.ops = &winsock_ops;
 	up->s.debug_read = 0;
 	up->s.debug_write = 0;
-	up->s.lwipcbp = lwip_attach(up->s.fd);
+	up->s.lwipcbp = sock_attach(up->s.fd);
 	waitcb_init(&up->s.rwait, tc_callback, up);
 	waitcb_init(&up->s.wwait, tc_callback, up);
 }
@@ -126,13 +106,13 @@ static void socksproto_fini(struct socksproto *up)
 
 	waitcb_clean(&up->s.rwait);
 	waitcb_clean(&up->s.wwait);
-	lwip_detach(up->s.lwipcbp);
+	sock_detach(up->s.lwipcbp);
 	closesocket(up->s.fd);
 
 	waitcb_clean(&up->c.rwait);
 	waitcb_clean(&up->c.wwait);
 	sock_detach(up->c.lwipcbp);
-	sock_close(up->c.fd);
+	closesocket(up->c.fd);
 }
 
 struct socksproto *_header = NULL;
@@ -207,7 +187,7 @@ const int BUF_OVERFLOW = 1;
 static int buf_init(struct buf_match *m, void *buf, int limit)
 {
 	m->flags = 0;
-	m->base  = buf;
+	m->base  = (char *)buf;
 	m->limit = limit;
 	return 0;
 }
@@ -443,7 +423,7 @@ static int https_proto_input(struct socksproto *up)
 
 	limit = up->c.buf + up->c.len;
 	for (p = up->c.buf; p < limit; p++) {
-		p = memchr(p, '\r', limit - p);
+		p = (char *)memchr(p, '\r', limit - p);
 		if (p == NULL)
 			return 0;
 		end = p + 4;
@@ -459,7 +439,7 @@ static int https_proto_input(struct socksproto *up)
 		goto host_not_found;
 	}
 
-	port = "80";  
+	port = (char *)"80";  
 	bound = strchr(buf, ':');
 	if (bound != NULL) {
 		*bound++ = 0;
@@ -515,12 +495,12 @@ static int sockv4_proto_input(struct socksproto *up)
 	memcpy(&in_addr1, buf, sizeof(in_addr1));
 	buf += 4;
 
-	buf = memchr(buf, 0, limit - buf);
+	buf = (char *)memchr(buf, 0, limit - buf);
 	/* use for sockv4 support */
 	if (ntohl(in_addr1.s_addr) < 256) {
 		if (get_addr_by_name(buf + 1, &in_addr1))
 			goto host_not_found;
-		buf = memchr(buf + 1, 0, limit - buf - 1);
+		buf = (char *)memchr(buf + 1, 0, limit - buf - 1);
 	}
 
 	up->c.len = (limit - buf - 1);
@@ -624,7 +604,9 @@ static int do_data_forward(struct socksproto *up,
 static int try_reconnect(struct socksproto *up)
 {
 	int newfd;
-	int ret, len, error;
+	int ret, error;
+	socklen_t len = 0;
+
 	if (waitcb_completed(&up->s.wwait)) {
 		len = sizeof(error);
 		up->m_flags &= ~DOCONNECTING;
@@ -741,13 +723,13 @@ void new_socksproto(int sockfd)
 	lwipfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (lwipfd == -1) {
 		fprintf(stderr, "lwip create socket failure\n");
-		sock_close(sockfd);
+		closesocket(sockfd);
 		return;
 	}
 
 	ctxp = (struct socksproto *)malloc(sizeof(*ctxp));
 	if (ctxp == NULL) {
-		sock_close(sockfd);
+		closesocket(sockfd);
 		closesocket(lwipfd);
 		return;
 	}

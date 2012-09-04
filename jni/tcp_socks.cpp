@@ -17,15 +17,6 @@ static int  socksproto_run(struct socksproto *up);
 
 static int link_count = 0;
 
-struct sockop {
-	int (*blocking)(int fd);
-	int (*op_read)(int fd, void *buf, size_t len);
-	int (*op_write)(int fd, const void *buf, size_t len);
-	int (*do_shutdown)(int fd, int mode);
-	int (*read_wait)(struct sockcb *cb, struct waitcb *call);
-	int (*write_wait)(struct sockcb *cb, struct waitcb *call);
-} winsock_ops;
-
 struct sockspeer {
 	int fd;
 	int off;
@@ -715,7 +706,7 @@ static int socksproto_run(struct socksproto *up)
 	return !((up->c.flags & mask) && (up->s.flags & mask));
 }
 
-void new_socksproto(int sockfd)
+void new_tcp_socks(int sockfd)
 {
 	int lwipfd;
 	struct socksproto *ctxp;

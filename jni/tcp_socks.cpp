@@ -15,6 +15,7 @@ static int  socksproto_run(struct socksproto *up);
 
 #define NO_MORE_DATA 1
 #define WRITE_BROKEN 2
+#define EINPROGRESS WSAEWOULDBLOCK
 
 static int link_count = 0;
 
@@ -153,11 +154,12 @@ enum {
 	SOCKV4_PROTO = (1 << 1),
 	SOCKV5_PROTO = (1 << 2),
 	HTTPS_PROTO  = (1 << 3),
-	DIRECT_PROTO = (1 << 4),
-	DOCONNECTING = (1 << 5)
+	FORWARD_PROTO= (1 << 4),
+	DIRECT_PROTO = (1 << 5),
+	DOCONNECTING = (1 << 6)
 };
 
-static const int SUPPORTED_PROTO = UNKOWN_PROTO| SOCKV4_PROTO| SOCKV5_PROTO| DIRECT_PROTO;
+static const int SUPPORTED_PROTO = UNKOWN_PROTO| SOCKV4_PROTO| SOCKV5_PROTO| DIRECT_PROTO | FORWARD_PROTO;
 
 static void fill_connect_buffer(struct socksproto *up)
 {
@@ -284,6 +286,40 @@ enum socksv5_proto_flags {
 };
 
 extern int get_addr_by_name(const char *name, struct in_addr *ipaddr);
+
+static int forward_proto_input(struct socksproto *up)
+{
+	int error;
+	struct in_addr in_addr1;
+
+#if 0
+	if (get_addr_by_name("chnpxy01.cn.ta-mp.com", &in_addr1)) {
+		goto host_not_found;
+	}
+#endif
+	if (get_addr_by_name("172.24.61.252", &in_addr1)) {
+		goto host_not_found;
+	}
+
+	up->addr_in1.sin_family = AF_INET;
+	up->addr_in1.sin_port   = htons(8080);
+	up->addr_in1.sin_addr   = in_addr1;
+
+	up->m_flags &= ~FORWARD_PROTO;
+	fprintf(stderr, "connect to %d\n", link_count);
+	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
+	if (error == 0 || error_equal(up->s.fd, EINPROGRESS)) {
+		up->m_flags |= DOCONNECTING;
+		up->m_flags |= DIRECT_PROTO;
+		return 0;
+	}
+
+host_not_found:
+	up->c.flags |= WRITE_BROKEN;
+	up->s.flags |= WRITE_BROKEN;
+	up->m_flags |= UNKOWN_PROTO;
+	return 0;
+}
 
 /*
 1.向服务器的1080端口建立tcp连接。   
@@ -620,8 +656,8 @@ static int try_reconnect(struct socksproto *up)
 	if (waitcb_completed(&up->s.wwait)) {
 		len = sizeof(error);
 		up->m_flags &= ~DOCONNECTING;
-		ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, &error, &len);
-		if (error != ECONNABORTED) {
+		ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, (char *)&error, &len);
+		if (error != WSAECONNABORTED) {
 			up->s.len = up->respo_len;
 			return 0;
 		}
@@ -665,6 +701,11 @@ static int socksproto_run(struct socksproto *up)
 	if ((up->m_flags & SUPPORTED_PROTO) == NONE_PROTO) {
 		fill_connect_buffer(up);
 		check_proxy_proto(up);
+	}
+
+	if (up->m_flags & FORWARD_PROTO) {
+		fill_connect_buffer(up);
+		forward_proto_input(up);
 	}
 
 	if (up->m_flags & SOCKV4_PROTO) {

@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
+import android.net.ConnectivityManager;
 
 import android.app.Activity;
 import android.content.ComponentName;
@@ -11,6 +12,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManagerProxy;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.widget.Button;
@@ -55,6 +57,9 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		Button stop = (Button)findViewById(R.id.stop);
 		stop.setOnClickListener(this);
 		
+		Button enableTether = (Button)findViewById(R.id.enable_usb_tether);
+		enableTether.setOnClickListener(this);
+		
 		prefs = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE);
 		
 		EditText etPort = (EditText)findViewById(R.id.port);
@@ -85,29 +90,53 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 				updateNetworkDisplay();
 				break;
 				
+			case R.id.enable_usb_tether:
+				enableUsbTether();
+				break;
+				
 			default:
 				break;
 		}
 	}
 	
+	private void enableUsbTether() {
+		ConnectivityManagerProxy cm =
+			new ConnectivityManagerProxy((ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE));
+		String[] available = cm.getTetherableIfaces();
+		String[] mUsbRegexs = cm.getTetherableUsbRegexs();
+		String usbIface = findIface(available, mUsbRegexs);
+		int s = cm.tether(usbIface);
+	}
+	
+	private String findIface(String[] ifaces, String[] regexes) {
+		for (String iface : ifaces) {
+			for (String regex : regexes) {
+				if (iface.matches(regex)) {
+					return iface;
+				}
+			}
+		}
+		return null;
+	}
+
 	private void saveUserConfig() {
 		EditText tePort = (EditText)findViewById(R.id.port);
 		int port = Integer.valueOf(tePort.getText().toString());
-		
+
 		if (port > 0 && port < 65536)
 			prefs.edit().putInt("PORT", port).commit();
-		
+
 		return;
 	}
 
 	void updateNetworkDisplay() {
 		TextView tvAddress = (TextView)findViewById(R.id.networkaddress);
-		
+
 		if (proxy5Controler == null) {
 			tvAddress.setText("service not running");
 			return;		
 		}
-		
+
 		try {
 			for (Enumeration<NetworkInterface> en = NetworkInterface
 					.getNetworkInterfaces(); en.hasMoreElements();) {
@@ -121,14 +150,14 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 						return;
 					}
 				}
-				}
-			} catch (SocketException ex) {
-				tvAddress.setText("could not get network address");
-				ex.printStackTrace();				
-			} catch (Exception e) {
-				e.printStackTrace();
 			}
-		
+		} catch (SocketException ex) {
+			tvAddress.setText("could not get network address");
+			ex.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		return;
 	}
 }

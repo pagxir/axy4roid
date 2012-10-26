@@ -30,6 +30,13 @@
         android:id="@+id/networkaddress"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:text="@string/address" />
+
+    <Button
+        android:id="@+id/enable_usb_tether"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/usb_tether" />
 
 </LinearLayout>

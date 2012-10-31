@@ -18,10 +18,12 @@ import android.os.IBinder;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 
 public class Proxy5Activity extends Activity implements OnClickListener {
+	static final String LOG_TAG ="Proxy5Activity";
 	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
 	private static final Intent proxy5Service = new Intent("com.myfield.PROXY5");
 	
@@ -106,6 +108,7 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		String[] mUsbRegexs = cm.getTetherableUsbRegexs();
 		String usbIface = findIface(available, mUsbRegexs);
 		int s = cm.tether(usbIface);
+		Log.d(LOG_TAG, "tether " + s);
 	}
 	
 	private String findIface(String[] ifaces, String[] regexes) {

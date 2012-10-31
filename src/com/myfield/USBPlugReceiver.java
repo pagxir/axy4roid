@@ -18,7 +18,7 @@ public class USBPlugReceiver extends BroadcastReceiver {
 		SharedPreferences prefs;
 		String action = intent.getAction();
 		prefs = context.getSharedPreferences(Proxy5Activity.SETTINGS_KEY, Context.MODE_PRIVATE);
-		autoUSB = prefs.getBoolean("AutoUSB", true);
+		autoUSB = prefs.getBoolean("AutoUSB", false);
 		autoTether = prefs.getBoolean("AutoTether", false);
 
 		if (action.equals(Intent.ACTION_UMS_CONNECTED)) {
@@ -37,7 +37,7 @@ public class USBPlugReceiver extends BroadcastReceiver {
 			context.stopService(proxy5Service);
 		}
 
-		if (autoUSB || autoTether) {
+		if ((autoUSB || autoTether) && action.equals(Intent.ACTION_POWER_CONNECTED)) {
 			int state;
 			ConnectivityManager cm =
 					(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);

@@ -8,5 +8,7 @@
     <string name="port">PORT</string>
     <string name="address">Network Address</string>
     <string name="usb_tether">Enable USB tether</string>
+    <string name="auto_tether">Auto Tether USB</string>
+    <string name="usb_binding">Bind Service to USB</string>
 
 </resources>

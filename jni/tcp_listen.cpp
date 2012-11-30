@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <assert.h>
-#include "platform.h"
 
-#include "module.h"
-#include "slotwait.h"
-#include "slotsock.h"
+#include <wait/module.h>
+#include <wait/platform.h>
+#include <wait/slotwait.h>
+#include <wait/slotsock.h>
 
+#include "pstcp_http.h"
 #include "tcp_channel.h"
 
 static int _port = 1080;
@@ -25,6 +26,8 @@ extern "C" int proxy_setport(int port)
 	return 0;
 }
 
+void new_pstcp_channel(int fd);
+
 static void module_init(void)
 {
 	int error;
@@ -41,7 +44,7 @@ static void module_init(void)
 	_lenfile = socket(AF_INET, SOCK_STREAM, 0);
 	assert(_lenfile != -1);
 
-	error = setsockopt(_lenfile, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+	error = setsockopt(_lenfile, SOL_SOCKET, SO_REUSEADDR, (char *)&optval, sizeof(optval));
 	assert(error == 0);
 
 	error = bind(_lenfile, (struct sockaddr *)&_lenaddr, sizeof(_lenaddr));
@@ -95,7 +98,11 @@ void listen_callback(void *context)
 	if (newfd != -1) {
 		fprintf(stderr, "new client: %s:%u\n",
 				inet_ntoa(newaddr.sin_addr), ntohs(newaddr.sin_port));
+#ifdef _HTTP_SERVER_
+		new_pstcp_channel(newfd);
+#else
 		new_tcp_socks(newfd);
+#endif
 	}
 
 	error = sock_read_wait(_sockcbp, &_event);

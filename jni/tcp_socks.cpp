@@ -2,12 +2,12 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-#include "platform.h"
 
-#include "module.h"
-#include "callout.h"
-#include "slotwait.h"
-#include "slotsock.h"
+#include <wait/module.h>
+#include <wait/platform.h>
+#include <wait/callout.h>
+#include <wait/slotwait.h>
+#include <wait/slotsock.h>
 
 static void tc_cleanup(void *context);
 static void tc_callback(void *context);
@@ -15,7 +15,6 @@ static int  socksproto_run(struct socksproto *up);
 
 #define NO_MORE_DATA 1
 #define WRITE_BROKEN 2
-#define EINPROGRESS WSAEWOULDBLOCK
 
 static int link_count = 0;
 
@@ -657,7 +656,7 @@ static int try_reconnect(struct socksproto *up)
 		len = sizeof(error);
 		up->m_flags &= ~DOCONNECTING;
 		ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, (char *)&error, &len);
-		if (error != WSAECONNABORTED) {
+		if (error != ECONNABORTED) {
 			up->s.len = up->respo_len;
 			return 0;
 		}

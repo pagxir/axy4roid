@@ -2,14 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
-#include "platform.h"
 
-#include "module.h"
-#include "slotwait.h"
-#include "callout.h"
-
-#include "tcp_device.h"
-#include "tcp_channel.h"
+#include <wait/module.h>
+#include <wait/platform.h>
+#include <wait/slotwait.h>
+#include <wait/callout.h>
 
 static struct waitcb _jni_timer;
 extern struct module_stub timer_mod;

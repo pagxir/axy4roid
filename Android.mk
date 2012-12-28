@@ -3,9 +3,12 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := $(call all-subdir-java-files)
 
-LOCAL_PACKAGE_NAME := AlarmClock
+LOCAL_PACKAGE_NAME := prox4roid
+LOCAL_JNI_SHARED_LIBRARIES := libproxy5
 
 include $(BUILD_PACKAGE)
 
-include $(call all-subdir-makefiles) 
+include $(CLEAR_VARS)
+include $(call all-makefiles-under,$(LOCAL_PATH))
+
 

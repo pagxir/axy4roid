@@ -153,12 +153,13 @@ enum {
 	SOCKV4_PROTO = (1 << 1),
 	SOCKV5_PROTO = (1 << 2),
 	HTTPS_PROTO  = (1 << 3),
-	FORWARD_PROTO= (1 << 4),
-	DIRECT_PROTO = (1 << 5),
-	DOCONNECTING = (1 << 6)
+	HTTP_PROTO   = (1 << 4),
+	FORWARD_PROTO= (1 << 5),
+	DIRECT_PROTO = (1 << 6),
+	DOCONNECTING = (1 << 7)
 };
 
-static const int SUPPORTED_PROTO = UNKOWN_PROTO| SOCKV4_PROTO| SOCKV5_PROTO| DIRECT_PROTO | FORWARD_PROTO;
+static const int SUPPORTED_PROTO = UNKOWN_PROTO| SOCKV4_PROTO| SOCKV5_PROTO| DIRECT_PROTO | FORWARD_PROTO| HTTP_PROTO;
 
 static void fill_connect_buffer(struct socksproto *up)
 {
@@ -260,6 +261,19 @@ static void check_proxy_proto(struct socksproto *up)
 		}
 		if (*op == 0) {
 			up->m_flags |= HTTPS_PROTO;
+			return;
+		}
+	}
+
+	if (buf_equal(&m, 0, 'G')) {
+		int off = 0;
+		const char *op = "GET ";
+		while (*++op != 0) {
+			if (!buf_equal(&m, ++off, *op))
+				break;
+		}
+		if (*op == 0) {
+			up->m_flags |= HTTP_PROTO;
 			return;
 		}
 	}
@@ -458,6 +472,75 @@ host_not_found:
 	return 0;
 }
 
+static int http_proto_input(struct socksproto *up)
+{
+	int error;
+	int cutlen = 0;
+	struct in_addr in_addr1;
+	char buf[sizeof(up->c.buf)] = "";
+	char *bound, *port, *line, *p;
+
+	p = (char *)memchr(up->c.buf, '\r', up->c.len);
+	if (p == NULL) {
+		return 0;
+	}
+
+	if (sscanf(up->c.buf, "GET %s HTTP/1.%*d\r\n", buf) != 1) {
+		goto host_not_found;
+	}
+
+	if (strncmp(buf, "http://", 7) != 0) {
+		goto host_not_found;
+	}
+
+	line = buf + 7;
+	if ((p = strchr(line, '/')) != NULL) {
+		cutlen = (p - buf);
+		*p = 0;
+	} else {
+		/* illegal url found. */
+		goto host_not_found;
+	}
+
+	port = (char *)"80";
+	bound = strchr(line, ':');
+	if (bound != NULL) {
+		*bound++ = 0;
+		port = bound;
+	}
+
+	if (get_addr_by_name(line, &in_addr1)) {
+		goto host_not_found;
+	}
+
+	up->addr_in1.sin_family = AF_INET;
+	up->addr_in1.sin_port   = htons(atoi(port));
+	up->addr_in1.sin_addr   = in_addr1;
+
+	up->m_flags &= ~HTTP_PROTO;
+	fprintf(stderr, "connect to %d\n", link_count);
+	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
+	if (error == 0 || error_equal(up->s.fd, EINPROGRESS)) {
+		assert(up->c.len > cutlen);
+		up->c.off = 0;
+		up->c.len -= cutlen;
+		p = up->c.buf + 4;
+		memmove(p, p + cutlen, up->c.len + 1);
+
+		up->respo_len = 0;
+		up->s.len = up->s.off = 0;
+		up->m_flags |= DOCONNECTING;
+		up->m_flags |= DIRECT_PROTO;
+		return 0;
+	}
+
+host_not_found:
+	up->c.flags |= WRITE_BROKEN;
+	up->s.flags |= WRITE_BROKEN;
+	up->m_flags |= UNKOWN_PROTO;
+	return 0;
+}
+
 static int https_proto_input(struct socksproto *up)
 {
 	int error;
@@ -501,7 +584,7 @@ static int https_proto_input(struct socksproto *up)
 	up->addr_in1.sin_family = AF_INET;
 	up->addr_in1.sin_port   = htons(atoi(port));
 	up->addr_in1.sin_addr   = in_addr1;
-	
+
 	up->m_flags &= ~HTTPS_PROTO;
 	fprintf(stderr, "connect to %d\n", link_count);
 	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
@@ -720,6 +803,11 @@ static int socksproto_run(struct socksproto *up)
 	if (up->m_flags & HTTPS_PROTO) {
 		fill_connect_buffer(up);
 		https_proto_input(up);
+	}
+
+	if (up->m_flags & HTTP_PROTO) {
+		fill_connect_buffer(up);
+		http_proto_input(up);
 	}
 
 	if (up->m_flags & UNKOWN_PROTO) {

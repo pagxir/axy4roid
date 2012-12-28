@@ -476,7 +476,7 @@ static int https_proto_input(struct socksproto *up)
 			break;
 	}
 
-	if (p >= limit) {
+	if (end > limit) {
 		return 0;
 	}
 
@@ -484,7 +484,7 @@ static int https_proto_input(struct socksproto *up)
 		goto host_not_found;
 	}
 
-	port = (char *)"80";  
+	port = (char *)"80";
 	bound = strchr(buf, ':');
 	if (bound != NULL) {
 		*bound++ = 0;
@@ -507,7 +507,7 @@ static int https_proto_input(struct socksproto *up)
 	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
 	if (error == 0 || error_equal(up->s.fd, EINPROGRESS)) {
 		memcpy(up->s.buf, resp_https, sizeof(resp_https));
-		up->respo_len = sizeof(resp_https);
+		up->respo_len = sizeof(resp_https) - 1;
 		up->s.len = up->s.off = 0;
 		up->m_flags |= DOCONNECTING;
 		up->m_flags |= DIRECT_PROTO;

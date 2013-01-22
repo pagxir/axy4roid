@@ -17,6 +17,15 @@ static int  socksproto_run(struct socksproto *up);
 #define WRITE_BROKEN 2
 
 static int link_count = 0;
+static const char www_authentication_required[] = {
+	"HTTP/1.0 401 Unauthorized\r\n"
+	"WWW-Authenticate: Basic realm=\"myfield.com\"\r\n\r\n"
+};
+
+static const char proxy_authentication_required[] = {
+	"HTTP/1.0 407 Proxy authentication required\r\n"
+	"Proxy-Authenticate: Basic realm=\"pagxir@gmail.com\"\r\n\r\n"
+};
 
 struct sockspeer {
 	int fd;
@@ -232,6 +241,38 @@ static int buf_overflow(struct buf_match *m)
 {
 	/* XXXX */
 	return (m->flags & BUF_OVERFLOW);
+}
+
+static int check_proxy_authentication(const char *buf)
+{
+	int len;
+	const char *realm, *limit; 
+	char authorization[] = {
+		"dXNlcjpwYXNzd29yZA=="
+	};
+
+#if 0
+	"Proxy-Authorization: Basic dXNlcjpwYXNzd29yZA==\r\n"
+#endif
+
+	limit = strstr(buf, "\r\n\r\n");
+	realm = strstr(buf, "Proxy-Authorization:");
+
+	if (limit == NULL ||
+		realm == NULL || limit < realm)
+		return strlen(authorization) == 0;
+
+	realm += strlen("Proxy-Authorization:");
+	while (*realm == ' ') realm++;
+
+	if (strncmp(realm, "Basic", 5) != 0)
+		return 0;
+
+	realm += strlen("Basic");
+	while (*realm == ' ') realm++;
+
+	len = strlen(authorization);
+	return strncmp(realm, authorization, len) == 0;
 }
 
 static void check_proxy_proto(struct socksproto *up)
@@ -518,6 +559,17 @@ static int http_proto_input(struct socksproto *up)
 	up->addr_in1.sin_addr   = in_addr1;
 
 	up->m_flags &= ~HTTP_PROTO;
+	if (!check_proxy_authentication(up->c.buf)) {
+		strcpy(up->s.buf, proxy_authentication_required);
+		up->s.off = 0;
+		up->respo_len = 0;
+		up->s.len = strlen(up->s.buf);
+		up->s.flags |= WRITE_BROKEN;
+		up->s.flags |= NO_MORE_DATA;
+		up->m_flags |= DIRECT_PROTO;
+		return 0;
+	}
+
 	fprintf(stderr, "connect to %d\n", link_count);
 	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
 	if (error == 0 || error_equal(up->s.fd, EINPROGRESS)) {
@@ -586,6 +638,17 @@ static int https_proto_input(struct socksproto *up)
 	up->addr_in1.sin_addr   = in_addr1;
 
 	up->m_flags &= ~HTTPS_PROTO;
+	if (!check_proxy_authentication(up->c.buf)) {
+		strcpy(up->s.buf, proxy_authentication_required);
+		up->s.off = 0;
+		up->respo_len = 0;
+		up->s.len = strlen(up->s.buf);
+		up->s.flags |= WRITE_BROKEN;
+		up->s.flags |= NO_MORE_DATA;
+		up->m_flags |= DIRECT_PROTO;
+		return 0;
+	}
+
 	fprintf(stderr, "connect to %d\n", link_count);
 	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
 	if (error == 0 || error_equal(up->s.fd, EINPROGRESS)) {

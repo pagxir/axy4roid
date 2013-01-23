@@ -319,6 +319,19 @@ static void check_proxy_proto(struct socksproto *up)
 		}
 	}
 
+	if (buf_equal(&m, 0, 'P')) {
+		int off = 0;
+		const char *op = "POST ";
+		while (*++op != 0) {
+			if (!buf_equal(&m, ++off, *op))
+				break;
+		}
+		if (*op == 0) {
+			up->m_flags |= HTTP_PROTO;
+			return;
+		}
+	}
+
 	if (!buf_overflow(&m)) {
 		up->m_flags |= UNKOWN_PROTO;
 		return;
@@ -517,6 +530,7 @@ static int http_proto_input(struct socksproto *up)
 {
 	int error;
 	int cutlen = 0;
+	int use_post = 0;
 	struct in_addr in_addr1;
 	char buf[sizeof(up->c.buf)] = "";
 	char *bound, *port, *line, *p;
@@ -527,7 +541,9 @@ static int http_proto_input(struct socksproto *up)
 	}
 
 	if (sscanf(up->c.buf, "GET %s HTTP/1.%*d\r\n", buf) != 1) {
-		goto host_not_found;
+		if (sscanf(up->c.buf, "POST %s HTTP/1.%*d\r\n", buf) != 1)
+			goto host_not_found;
+		use_post = 1;
 	}
 
 	if (strncmp(buf, "http://", 7) != 0) {
@@ -576,7 +592,7 @@ static int http_proto_input(struct socksproto *up)
 		assert(up->c.len > cutlen);
 		up->c.off = 0;
 		up->c.len -= cutlen;
-		p = up->c.buf + 4;
+		p = up->c.buf + 4 + use_post;
 		memmove(p, p + cutlen, up->c.len + 1);
 
 		up->respo_len = 0;

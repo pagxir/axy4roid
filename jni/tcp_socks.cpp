@@ -153,7 +153,11 @@ static void tc_callback(void *context)
 		waitcb_active(&ctxp->s.wwait))
 		return;
 
-	assert(0);
+	fprintf(stderr, "encounter proxy connect error, close this connection!\n");
+	socksproto_fini(ctxp);
+	free(context);
+	link_count--;
+	return;
 }
 
 enum {
@@ -349,7 +353,9 @@ static void check_proxy_proto(struct socksproto *up)
 }
 
 enum socksv5_proto_flags {
-	AUTHED = (1 << 0)	
+	AUTHED_0 = (1 << 0),
+	AUTHED_1 = (1 << 1),
+	AUTHED_Z = (1 << 2)
 };
 
 extern int get_addr_by_name(const char *name, struct in_addr *ipaddr);
@@ -419,21 +425,65 @@ static int sockv5_proto_input(struct socksproto *up)
 		0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 
-	if ((up->proto_flags & AUTHED) != AUTHED) {
-		buf[0] = 0x05;
-		buf[1] = 0x00;
-		ret = t->ops->op_write(t->fd, buf, 2);
-		if (ret != 2)
-			goto host_not_found;
-		limit = up->c.buf + up->c.len;
-		p = up->c.buf + (up->c.buf[1] & 0xFF) + 2;
-		memmove(up->c.buf, p, limit - p);
-		up->c.len = (limit - p);
-		up->proto_flags |= AUTHED;
+	buf_init(&m, up->c.buf, up->c.len);
+	if ((up->proto_flags & AUTHED_0) != AUTHED_0) {
+		if (buf_equal(&m, 0, 0x05) && buf_valid(&m, 1)) {
+			int nmethod = (up->c.buf[1] & 0xFF);
+
+			if (buf_valid(&m, nmethod + 1)) {
+				buf[0] = 0x05;
+				buf_init(&m, up->c.buf, nmethod + 2);
+				if (buf_find(&m, 2, 0x02)) {
+					buf[1] = 0x02;
+					ret = t->ops->op_write(t->fd, buf, 2);
+					if (ret != 2)
+						goto host_not_found;
+					up->proto_flags |= AUTHED_1;
+				} else if ( 0 ) {
+					buf[1] = 0x00;
+					ret = t->ops->op_write(t->fd, buf, 2);
+					if (ret != 2)
+						goto host_not_found;
+					up->proto_flags |= AUTHED_Z;
+				} else {
+					fprintf(stderr, "authorization method not support!\n");
+					goto host_not_found;
+				}
+				limit = up->c.buf + up->c.len;
+				p = up->c.buf + nmethod + 2;
+				memmove(up->c.buf, p, limit - p);
+				up->c.len = (limit - p);
+				up->proto_flags |= AUTHED_0;
+			}
+		}
 	}
 
 	buf_init(&m, up->c.buf, up->c.len);
-	if (up->proto_flags & AUTHED) {
+	if ((up->proto_flags & (AUTHED_1| AUTHED_0)) == (AUTHED_1| AUTHED_0)) {
+		int l1 = (up->c.buf[1] & 0xFF);
+		if (buf_equal(&m, 0, 0x01) && buf_valid(&m, l1 + 2)) {
+			int l2 = (up->c.buf[l1 + 2] & 0xFF);
+			if (buf_valid(&m, l1 + l2 + 2)) {
+				buf[0] = 0x1;
+				buf[1] = 0x0;
+				ret = t->ops->op_write(t->fd, buf, 2);
+				if (ret != 2) {
+					fprintf(stderr, "authorizating failure\n");
+					goto host_not_found;
+				}
+				fprintf(stderr, "user: %.*s\n", l1, up->c.buf + 2);
+				fprintf(stderr, "password: %.*s\n", l2, up->c.buf + 3 + l1);
+				up->c.len -= (l1 + l2 + 3);
+				memmove(up->c.buf, up->c.buf + l1 + l2 + 3, up->c.len);
+				up->proto_flags &= ~AUTHED_1;
+				up->proto_flags |= AUTHED_Z;
+				fprintf(stderr, "len %d\n", up->c.len);
+			}
+		}
+	}
+
+	buf_init(&m, up->c.buf, up->c.len);
+	if (up->proto_flags & AUTHED_Z) {
 		if (buf_equal(&m, 0, 0x05) && 
 			buf_equal(&m, 2, 0x00) && buf_valid(&m, 9)) {
 			char *end = 0;
@@ -703,7 +753,7 @@ static int sockv4_proto_input(struct socksproto *up)
 	buf += 4;
 
 	buf = (char *)memchr(buf, 0, limit - buf);
-	/* use for sockv4 support */
+	/* use for sockv4a support */
 	if (ntohl(in_addr1.s_addr) < 256) {
 		if (get_addr_by_name(buf + 1, &in_addr1))
 			goto host_not_found;

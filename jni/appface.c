@@ -41,7 +41,7 @@ static void setHTTPAuthorization(JNIEnv *env, jclass clazz, jstring info)
 	const char *str;
 
 	str = (*env)->GetStringUTFChars(env, info, 0);
-	set_http_authentication(info);
+	set_http_authentication(str);
 	(*env)->ReleaseStringUTFChars(env, info, str);
 	return;
 }
@@ -52,7 +52,7 @@ static void setSocks5UserPassword(JNIEnv *env, jclass clazz, jstring info)
 	const char *str;
 
 	str = (*env)->GetStringUTFChars(env, info, 0);
-	set_socks5_user_password(info);
+	set_socks5_user_password(str);
 	(*env)->ReleaseStringUTFChars(env, info, str);
 	return;
 }

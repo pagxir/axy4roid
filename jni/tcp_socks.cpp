@@ -293,9 +293,12 @@ static int check_proxy_authentication(const char *buf)
 	limit = strstr(buf, "\r\n\r\n");
 	realm = strstr(buf, "Proxy-Authorization:");
 
+	if (*http_authorization == 0)
+		return 1;
+
 	if (limit == NULL ||
 		realm == NULL || limit < realm)
-		return strlen(http_authorization) == 0;
+		return 0;
 
 	realm += strlen("Proxy-Authorization:");
 	while (*realm == ' ') realm++;

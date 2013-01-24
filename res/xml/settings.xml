@@ -1,27 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-	<CheckBoxPreference android:key="anonymous"
-		android:title="@string/anonymous"
-		android:summary="@string/anonymous_smmary"
+	<CheckBoxPreference android:key="enable_authorization"
+		android:title="@string/enable_authorization"
+		android:summary="@string/enable_authorization_smmary"
 		android:defaultValue="true"/>
 	<EditTextPreference
 		android:name="user"
 		android:title="@string/user"
 		android:summary="@string/user_summary"
 		android:defaultValue="proxy"
-		android:dependency="anonymous"
+		android:dependency="enable_authorization"
 		android:key="user" />
 	<EditTextPreference
 		android:name="password"
 		android:summary="@string/password_summary"
 		android:title="@string/password"
 		android:defaultValue="AdZnGWTM0dLT"
-		android:dependency="anonymous"
+		android:dependency="enable_authorization"
 		android:key="password" />
-	<EditTextPreference android:key="port"
-		android:title="@string/port_time"
+	<EditTextPreference
+		android:key="port"
+		android:title="@string/port"
 		android:summary="@string/port_summary"
-		android:defaultValue="15"
+		android:defaultValue="1800"
 		android:inputType="phone"
 		android:digits="0123456789"/>
 	<CheckBoxPreference android:key="usb_binding"

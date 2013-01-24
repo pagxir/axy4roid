@@ -10,7 +10,7 @@ import android.preference.PreferenceManager;
 import android.preference.PreferenceActivity;
 
 public class Proxy5Settings extends PreferenceActivity {
-	static final String LOG_TAG ="Proxy5Activity";
+	static final String LOG_TAG ="Proxy5Settings";
 	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
 
 	SharedPreferences prefs = null;
@@ -48,9 +48,10 @@ public class Proxy5Settings extends PreferenceActivity {
 			e.printStackTrace();
 		}
 
-		if (isEnabled(context, "anonymous")) {
+		if (!isEnabled(context, "enable_authorization")) {
 			AppFace.setHTTPAuthorization("");
 			AppFace.setSocks5UserPassword("");
+			Log.v(LOG_TAG, "enable anonymous");
 		} else {
 			int ul, pl;
 			StringBuilder sb;
@@ -61,11 +62,13 @@ public class Proxy5Settings extends PreferenceActivity {
 			sb.append(user);
 			sb.append((char)pl);
 			sb.append(password);
+			Log.v(LOG_TAG, "sock_auth: " + sb.toString());
 			AppFace.setSocks5UserPassword(sb.toString());
 
 			String info = user + ":" + password;
 			info = Base64.encodeToString(info.getBytes(), Base64.NO_WRAP);
 			AppFace.setHTTPAuthorization(info);
+			Log.v(LOG_TAG, "http_auth: " + info);
 		}
 
 		return val;

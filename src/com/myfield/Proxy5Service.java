@@ -35,6 +35,7 @@ public class Proxy5Service extends Service implements Runnable {
 	public void onCreate() {
 		Log.i(TAG, "onCreate");
 		super.onCreate();
+		PORT = Proxy5Settings.apply(this);
 		
 		worker = new Thread(this);
 		exited = false;
@@ -69,7 +70,6 @@ public class Proxy5Service extends Service implements Runnable {
 
 	@Override
 	public void run() {
-		PORT = Proxy5Settings.apply(this);
 		AppFace.start();
 		
 		Log.i(TAG, "run prepare");

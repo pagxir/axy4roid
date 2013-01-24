@@ -12,8 +12,8 @@
     <string name="user_summary">proxy user name</string>
     <string name="password">Password</string>
     <string name="password_summary">proxy password</string>
-    <string name="anonymous">Anonymous</string>
-    <string name="anonymous_smmary">allow anonymous user access</string>
+    <string name="enable_authorization">Enable Authorization</string>
+    <string name="enable_authorization_smmary">enable authorization</string>
     <string name="port">Port</string>
     <string name="port_summary">the listen tcp port of proxy</string>
     <string name="auto_tethering">USB Tether</string>

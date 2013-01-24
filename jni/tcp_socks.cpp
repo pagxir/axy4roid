@@ -17,6 +17,14 @@ static int  socksproto_run(struct socksproto *up);
 #define WRITE_BROKEN 2
 
 static int link_count = 0;
+static char http_authorization[512] = {
+	"dXNlcjpwYXNzd29yZA=="
+};
+
+static char socks5_user_password[514] = {
+	"\005proxy\014cAdZnGWTM0dLT"
+};
+
 static const char www_authentication_required[] = {
 	"HTTP/1.0 401 Unauthorized\r\n"
 	"WWW-Authenticate: Basic realm=\"myfield.com\"\r\n\r\n"
@@ -68,6 +76,32 @@ int error_equal(int fd, int code)
 #endif
 
 	return (error == code);
+}
+
+extern "C" int set_http_authentication(const char *info)
+{
+	size_t size;
+
+	size = sizeof(http_authorization);
+	if (strlen(info) < size) {
+		strncpy(http_authorization, info, size);
+		return 0;
+	}
+
+	return -1;
+}
+
+extern "C" int set_socks5_user_password(const char *info)
+{
+	size_t size;
+
+	size = sizeof(socks5_user_password);
+	if (strlen(info) < size) {
+		strncpy(socks5_user_password, info, size);
+		return 0;
+	}
+
+	return -1;
 }
 
 static void socksproto_init(struct socksproto *up, int sockfd, int lwipfd)
@@ -180,7 +214,7 @@ static void fill_connect_buffer(struct socksproto *up)
 	int count;
 	char *buf;
 
-	if (waitcb_completed(&up->c.rwait) && up->c.len < sizeof(up->c.buf)) {
+	if (waitcb_completed(&up->c.rwait) && up->c.len < (int)sizeof(up->c.buf)) {
 		buf = up->c.buf + up->c.off;
 		len = sizeof(up->c.buf) - up->c.len;
 		count = up->c.ops->op_read(up->c.fd, buf, len);
@@ -251,9 +285,6 @@ static int check_proxy_authentication(const char *buf)
 {
 	int len;
 	const char *realm, *limit; 
-	char authorization[] = {
-		"dXNlcjpwYXNzd29yZA=="
-	};
 
 #if 0
 	"Proxy-Authorization: Basic dXNlcjpwYXNzd29yZA==\r\n"
@@ -264,7 +295,7 @@ static int check_proxy_authentication(const char *buf)
 
 	if (limit == NULL ||
 		realm == NULL || limit < realm)
-		return strlen(authorization) == 0;
+		return strlen(http_authorization) == 0;
 
 	realm += strlen("Proxy-Authorization:");
 	while (*realm == ' ') realm++;
@@ -275,8 +306,8 @@ static int check_proxy_authentication(const char *buf)
 	realm += strlen("Basic");
 	while (*realm == ' ') realm++;
 
-	len = strlen(authorization);
-	return strncmp(realm, authorization, len) == 0;
+	len = strlen(http_authorization);
+	return strncmp(realm, http_authorization, len) == 0;
 }
 
 static void check_proxy_proto(struct socksproto *up)
@@ -433,13 +464,13 @@ static int sockv5_proto_input(struct socksproto *up)
 			if (buf_valid(&m, nmethod + 1)) {
 				buf[0] = 0x05;
 				buf_init(&m, up->c.buf, nmethod + 2);
-				if (buf_find(&m, 2, 0x02)) {
+				if (buf_find(&m, 2, 0x02) && socks5_user_password[0]) {
 					buf[1] = 0x02;
 					ret = t->ops->op_write(t->fd, buf, 2);
 					if (ret != 2)
 						goto host_not_found;
 					up->proto_flags |= AUTHED_1;
-				} else if ( 0 ) {
+				} else if (socks5_user_password[0] == 0) {
 					buf[1] = 0x00;
 					ret = t->ops->op_write(t->fd, buf, 2);
 					if (ret != 2)
@@ -464,15 +495,23 @@ static int sockv5_proto_input(struct socksproto *up)
 		if (buf_equal(&m, 0, 0x01) && buf_valid(&m, l1 + 2)) {
 			int l2 = (up->c.buf[l1 + 2] & 0xFF);
 			if (buf_valid(&m, l1 + l2 + 2)) {
-				buf[0] = 0x1;
-				buf[1] = 0x0;
-				ret = t->ops->op_write(t->fd, buf, 2);
+				int l3;
+				char err[2] = {0x1, 0x02};
+				l3 = strlen(socks5_user_password);
+
+				fprintf(stderr, "user: %.*s\n", l1, up->c.buf + 2);
+				fprintf(stderr, "password: %.*s\n", l2, up->c.buf + 3 + l1);
+				if (memcmp(socks5_user_password, up->c.buf + 1, l3)) {
+					t->ops->op_write(t->fd, err, 2);
+					goto host_not_found;
+				}
+
+				err[1] = 0x0;
+				ret = t->ops->op_write(t->fd, err, 2);
 				if (ret != 2) {
 					fprintf(stderr, "authorizating failure\n");
 					goto host_not_found;
 				}
-				fprintf(stderr, "user: %.*s\n", l1, up->c.buf + 2);
-				fprintf(stderr, "password: %.*s\n", l2, up->c.buf + 3 + l1);
 				up->c.len -= (l1 + l2 + 3);
 				memmove(up->c.buf, up->c.buf + l1 + l2 + 3, up->c.len);
 				up->proto_flags &= ~AUTHED_1;
@@ -743,14 +782,17 @@ static int sockv4_proto_input(struct socksproto *up)
 	const char *limit = up->c.buf + up->c.len;
 	u_char resp_v4[] = {0x00, 0x5A, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00};
 
-	assert(*buf == 0x4);
-	buf++;
-	assert(*buf == 0x01);
-	buf++;
+	if (buf[0] != 0x4 || buf[1] != 0x01)
+		goto host_not_found;
+	buf += 2;
 	memcpy(&in_port1, buf, sizeof(in_port1));
 	buf += 2;
 	memcpy(&in_addr1, buf, sizeof(in_addr1));
 	buf += 4;
+
+	if (http_authorization[0] &&
+		strcmp(http_authorization, buf))
+		goto host_not_found;
 
 	buf = (char *)memchr(buf, 0, limit - buf);
 	/* use for sockv4a support */
@@ -830,7 +872,7 @@ static int do_data_forward(struct socksproto *up,
 		}
 
 		mask = NO_MORE_DATA;
-		if (!(f->flags & mask) && f->len < sizeof(f->buf)) {
+		if (!(f->flags & mask) && f->len < (int)sizeof(f->buf)) {
 			if (waitcb_completed(&f->rwait)) {
 				ret = f->ops->op_read(f->fd, f->buf + f->len, sizeof(f->buf) - f->len);
 				if (ret == -1 && !f->ops->blocking(f->fd)) {

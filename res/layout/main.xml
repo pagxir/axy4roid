@@ -4,36 +4,6 @@
     android:layout_height="fill_parent"
     android:orientation="vertical" >
 
-    <EditText
-        android:id="@+id/port"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/port"
-        android:inputType="number" >
-
-        <requestFocus />
-    </EditText>
-
-    <LinearLayout
-        android:id="@+id/linearLayout1"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical" >
-
-        <CheckBox
-            android:id="@+id/usb_binding"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/usb_binding" />
-
-        <CheckBox
-            android:id="@+id/auto_tether"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/auto_tether" />
-
-    </LinearLayout>
-
     <Button
         android:id="@+id/start"
         android:layout_width="match_parent"

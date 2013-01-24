@@ -29,7 +29,6 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	private static final Intent proxy5Service = new Intent("com.myfield.PROXY5");
 
 	boolean binded = false;
-	SharedPreferences prefs = null;
 	Proxy5Service.Proxy5Controler proxy5Controler = null;
 
 	private ServiceConnection proxy5Connection = new ServiceConnection() {
@@ -63,20 +62,6 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		Button enableTether = (Button)findViewById(R.id.enable_usb_tether);
 		enableTether.setOnClickListener(this);
 
-		CheckBox autoTether = (CheckBox)findViewById(R.id.auto_tether);
-		autoTether.setOnClickListener(this);
-
-		CheckBox usbBinding = (CheckBox)findViewById(R.id.usb_binding);
-		usbBinding.setOnClickListener(this);
-
-		prefs = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE);
-
-		EditText etPort = (EditText)findViewById(R.id.port);
-		etPort.setText("" + prefs.getInt("PORT", 1800));
-
-		autoTether.setChecked(prefs.getBoolean("AutoTether", false));
-		usbBinding.setChecked(prefs.getBoolean("AutoUSB", false));
-
 		binded = bindService(proxy5Service, proxy5Connection, 0);
 	}
 
@@ -90,7 +75,6 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	public void onClick(View view) {
 		switch (view.getId()) {
 			case R.id.start:
-				saveUserConfig();
 				startService(proxy5Service);
 				if (!binded)
 					binded = bindService(proxy5Service, proxy5Connection, 0);
@@ -106,25 +90,13 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 				enableUsbTether();
 				break;
 
-			case R.id.auto_tether:
-				saveConfig(R.id.auto_tether, "AutoTether");
-				break;
-
-			case R.id.usb_binding:
-				saveConfig(R.id.usb_binding, "AutoUSB");
-				break;
-
 			default:
 				break;
 		}
 	}
 
-	private void saveConfig(int id, String key) {
-		CheckBox widget = (CheckBox)findViewById(id);
-		prefs.edit().putBoolean(key, widget.isChecked()).commit();
-	}
-
 	private void enableUsbTether() {
+		/*
 		ConnectivityManagerProxy cm =
 			new ConnectivityManagerProxy((ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE));
 		String[] available = cm.getTetherableIfaces();
@@ -132,6 +104,10 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		String usbIface = findIface(available, mUsbRegexs);
 		int s = cm.tether(usbIface);
 		Log.d(LOG_TAG, "tether " + s);
+		*/
+
+		Intent settings = new Intent("com.myfield.SETTINGS");
+		startActivity(settings);
 	}
 
 	private String findIface(String[] ifaces, String[] regexes) {
@@ -143,16 +119,6 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 			}
 		}
 		return null;
-	}
-
-	private void saveUserConfig() {
-		EditText tePort = (EditText)findViewById(R.id.port);
-		int port = Integer.valueOf(tePort.getText().toString());
-
-		if (port > 0 && port < 65536)
-			prefs.edit().putInt("PORT", port).commit();
-
-		return;
 	}
 
 	void updateNetworkDisplay() {

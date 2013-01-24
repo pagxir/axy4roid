@@ -3,7 +3,6 @@ package com.myfield;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Binder;
 import android.os.IBinder;
 import android.util.Log;
@@ -36,9 +35,6 @@ public class Proxy5Service extends Service implements Runnable {
 	public void onCreate() {
 		Log.i(TAG, "onCreate");
 		super.onCreate();
-		
-		SharedPreferences prefs = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE);
-		PORT = prefs.getInt("PORT", 1800);
 		
 		worker = new Thread(this);
 		exited = false;
@@ -73,7 +69,7 @@ public class Proxy5Service extends Service implements Runnable {
 
 	@Override
 	public void run() {
-		AppFace.setPort(PORT);
+		PORT = Proxy5Settings.apply(this);
 		AppFace.start();
 		
 		Log.i(TAG, "run prepare");

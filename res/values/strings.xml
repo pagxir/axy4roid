@@ -5,10 +5,20 @@
     <string name="app_name">Proxy5</string>
     <string name="start">START</string>
     <string name="stop">STOP</string>
-    <string name="port">PORT</string>
     <string name="address">Network Address</string>
     <string name="usb_tether">Enable USB tether</string>
     <string name="auto_tether">Auto Tether USB</string>
-    <string name="usb_binding">Bind Service to USB</string>
+    <string name="user">User Name</string>
+    <string name="user_summary">proxy user name</string>
+    <string name="password">Password</string>
+    <string name="password_summary">proxy password</string>
+    <string name="anonymous">Anonymous</string>
+    <string name="anonymous_smmary">allow anonymous user access</string>
+    <string name="port">Port</string>
+    <string name="port_summary">the listen tcp port of proxy</string>
+    <string name="auto_tethering">USB Tether</string>
+    <string name="auto_tethering_summary">auto tethering usb when usb wire connected</string>
+    <string name="usb_binding">USB Binding</string>
+    <string name="usb_binding_summary">auto start proxy service when usb wire connected</string>
 
 </resources>

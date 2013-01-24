@@ -127,6 +127,22 @@ public class ConnectivityManagerProxy {
 		connectivityManagerClass = ConnectivityManager.class;
 
 		try {
+			mtether = connectivityManagerClass.getDeclaredMethod("setUsbTethering", boolean.class);
+			state = (Integer)mtether.invoke(mConnectivityManager, true);
+			return state;
+		} catch (SecurityException e) {
+			e.printStackTrace();
+		} catch (NoSuchMethodException e) {
+			e.printStackTrace();
+		} catch (IllegalArgumentException e) {
+			e.printStackTrace();
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		} catch (InvocationTargetException e) {
+			e.printStackTrace();
+		}
+
+		try {
 			mtether = connectivityManagerClass.getDeclaredMethod("tether", String.class);
 			state = (Integer)mtether.invoke(mConnectivityManager, name);
 		} catch (SecurityException e) {

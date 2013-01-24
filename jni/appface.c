@@ -35,6 +35,28 @@ static void stopProxy(JNIEnv *env, jclass clazz)
 	stop_proxy();
 }
 
+int set_http_authentication(const char *info);
+static void setHTTPAuthorization(JNIEnv *env, jclass clazz, jstring info)
+{
+	const char *str;
+
+	str = (*env)->GetStringUTFChars(env, info, 0);
+	set_http_authentication(info);
+	(*env)->ReleaseStringUTFChars(env, info, str);
+	return;
+}
+
+int set_socks5_user_password(const char *info);
+static void setSocks5UserPassword(JNIEnv *env, jclass clazz, jstring info)
+{
+	const char *str;
+
+	str = (*env)->GetStringUTFChars(env, info, 0);
+	set_socks5_user_password(info);
+	(*env)->ReleaseStringUTFChars(env, info, str);
+	return;
+}
+
 //定义目标类名称
 static const char *className = "com/myfield/AppFace";
 
@@ -44,6 +66,8 @@ static JNINativeMethod methods[] = {
 	{"start", "()V", (void*)startProxy},
 	{"loop", "()V", (void*)loopProxy},
 	{"stop", "()V", (void*)stopProxy},
+	{"setHTTPAuthorization", "(Ljava/lang/String;)V", (void*)setHTTPAuthorization},
+	{"setSocks5UserPassword", "(Ljava/lang/String;)V", (void*)setSocks5UserPassword}
 };
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved){

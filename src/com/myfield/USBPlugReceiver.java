@@ -15,11 +15,9 @@ public class USBPlugReceiver extends BroadcastReceiver {
 	public void onReceive(Context context, Intent intent) {
 
 		boolean autoUSB, autoTether;
-		SharedPreferences prefs;
 		String action = intent.getAction();
-		prefs = context.getSharedPreferences(Proxy5Activity.SETTINGS_KEY, Context.MODE_PRIVATE);
-		autoUSB = prefs.getBoolean("AutoUSB", false);
-		autoTether = prefs.getBoolean("AutoTether", false);
+		autoUSB = Proxy5Settings.isEnabled(context, "usb_binding");
+		autoTether = Proxy5Settings.isEnabled(context, "auto_tethering");
 
 		if (action.equals(Intent.ACTION_UMS_CONNECTED)) {
 			Log.d(LOG_TAG, "onReceive " + action);

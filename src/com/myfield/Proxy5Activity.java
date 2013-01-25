@@ -22,6 +22,8 @@ import android.widget.TextView;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.Menu;
+import android.view.MenuItem;
 
 public class Proxy5Activity extends Activity implements OnClickListener {
 	static final String LOG_TAG ="Proxy5Activity";
@@ -59,7 +61,7 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		Button stop = (Button)findViewById(R.id.stop);
 		stop.setOnClickListener(this);
 
-		Button enableTether = (Button)findViewById(R.id.enable_usb_tether);
+		Button enableTether = (Button)findViewById(R.id.tether);
 		enableTether.setOnClickListener(this);
 
 		binded = bindService(proxy5Service, proxy5Connection, 0);
@@ -86,7 +88,7 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 				updateNetworkDisplay();
 				break;
 
-			case R.id.enable_usb_tether:
+			case R.id.tether:
 				enableUsbTether();
 				break;
 
@@ -96,7 +98,6 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	}
 
 	private void enableUsbTether() {
-		/*
 		ConnectivityManagerProxy cm =
 			new ConnectivityManagerProxy((ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE));
 		String[] available = cm.getTetherableIfaces();
@@ -104,10 +105,6 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		String usbIface = findIface(available, mUsbRegexs);
 		int s = cm.tether(usbIface);
 		Log.d(LOG_TAG, "tether " + s);
-		*/
-
-		Intent settings = new Intent("com.myfield.SETTINGS");
-		startActivity(settings);
 	}
 
 	private String findIface(String[] ifaces, String[] regexes) {
@@ -130,6 +127,7 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		}
 
 		try {
+			StringBuilder sb = new StringBuilder();
 			for (Enumeration<NetworkInterface> en = NetworkInterface
 					.getNetworkInterfaces(); en.hasMoreElements();) {
 				NetworkInterface intf = en.nextElement();
@@ -138,11 +136,14 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 					InetAddress inetAddress = ipAddr.nextElement();
 					if (!inetAddress.isLoopbackAddress()) {
 						String address = inetAddress.getHostAddress();
-						tvAddress.setText(address + ":" + proxy5Controler.getPort());
-						return;
+						sb.append(address);
+						sb.append(":");
+						sb.append(String.valueOf(proxy5Controler.getPort()));
+						sb.append("\n");
 					}
 				}
 			}
+			tvAddress.setText(sb.toString());
 		} catch (SocketException ex) {
 			tvAddress.setText("could not get network address");
 			ex.printStackTrace();
@@ -151,5 +152,23 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 		}
 
 		return;
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		menu.add(Menu.NONE, Menu.FIRST + 1, 5, "Settings").setIcon(android.R.drawable.ic_menu_edit);
+		return true;
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case Menu.FIRST + 1:
+				Intent settings = new Intent("com.myfield.SETTINGS");
+				startActivity(settings);
+				break;
+		}
+
+		return false;
 	}
 }

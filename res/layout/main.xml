@@ -4,18 +4,6 @@
     android:layout_height="fill_parent"
     android:orientation="vertical" >
 
-    <Button
-        android:id="@+id/start"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/start" />
-
-    <Button
-        android:id="@+id/stop"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/stop" />
-
     <TextView
         android:id="@+id/networkaddress"
         android:layout_width="match_parent"
@@ -23,10 +11,30 @@
         android:layout_weight="1"
         android:text="@string/address" />
 
-    <Button
-        android:id="@+id/enable_usb_tether"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/usb_tether" />
+	<LinearLayout
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:orientation="horizontal" >
+		<Button
+			android:id="@+id/start"
+        	android:layout_weight="1"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="@string/start" />
+
+		<Button
+			android:id="@+id/stop"
+        	android:layout_weight="1"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="@string/stop" />
+
+		<Button
+			android:id="@+id/tether"
+        	android:layout_weight="1"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content"
+			android:text="@string/tether" />
+	</LinearLayout>
 
 </LinearLayout>

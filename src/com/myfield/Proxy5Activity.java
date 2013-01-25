@@ -98,13 +98,28 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	}
 
 	private void enableUsbTether() {
+		int state;
 		ConnectivityManagerProxy cm =
 			new ConnectivityManagerProxy((ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE));
-		String[] available = cm.getTetherableIfaces();
-		String[] mUsbRegexs = cm.getTetherableUsbRegexs();
-		String usbIface = findIface(available, mUsbRegexs);
-		int s = cm.tether(usbIface);
-		Log.d(LOG_TAG, "tether " + s);
+		state = cm.setUsbTethering(true);
+
+		if (state == -1) {
+			String[] available = cm.getTetherableIfaces();
+			String[] mUsbRegexs = cm.getTetherableUsbRegexs();
+			String usbIface = findIface(available, mUsbRegexs);
+
+			state = 0;
+			if (usbIface != null) {
+				state = cm.tether(usbIface);
+				Log.d(LOG_TAG, "tether " + state);
+			}
+		}
+
+		if (state != 0) {
+			Intent settings = new Intent("android.settings.WIRELESS_SETTINGS");
+			Log.d(LOG_TAG, "auto enable tethering failure, switch to manmual");
+			startActivity(settings);
+		}
 	}
 
 	private String findIface(String[] ifaces, String[] regexes) {

@@ -119,28 +119,38 @@ public class ConnectivityManagerProxy {
 		return UsbRegexs;
 	}
 
-	public int tether(String name) {
-		int state = 0;
+	public int setUsbTethering(boolean enable) {
+		int state = -1;
 		Method mtether;
 		Class<ConnectivityManager> connectivityManagerClass;
-
 		connectivityManagerClass = ConnectivityManager.class;
 
 		try {
 			mtether = connectivityManagerClass.getDeclaredMethod("setUsbTethering", boolean.class);
 			state = (Integer)mtether.invoke(mConnectivityManager, true);
-			return state;
 		} catch (SecurityException e) {
 			e.printStackTrace();
+			state = 2;
 		} catch (NoSuchMethodException e) {
 			e.printStackTrace();
 		} catch (IllegalArgumentException e) {
 			e.printStackTrace();
 		} catch (IllegalAccessException e) {
 			e.printStackTrace();
+			state = 2;
 		} catch (InvocationTargetException e) {
 			e.printStackTrace();
+			state = 2;
 		}
+
+		return state;
+	}
+
+	public int tether(String name) {
+		int state = -1;
+		Method mtether;
+		Class<ConnectivityManager> connectivityManagerClass;
+		connectivityManagerClass = ConnectivityManager.class;
 
 		try {
 			mtether = connectivityManagerClass.getDeclaredMethod("tether", String.class);

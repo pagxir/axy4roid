@@ -41,12 +41,16 @@ public class USBPlugReceiver extends BroadcastReceiver {
 					(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
 			ConnectivityManagerProxy wrapper =	new ConnectivityManagerProxy(cm);
 
-			String[] available = wrapper.getTetherableIfaces();
-			String[] mUsbRegexs = wrapper.getTetherableUsbRegexs();
-			String usbIface = findIface(available, mUsbRegexs);
+			if (wrapper.setUsbTethering(true) == -1) {
+				String[] available = wrapper.getTetherableIfaces();
+				String[] mUsbRegexs = wrapper.getTetherableUsbRegexs();
+				String usbIface = findIface(available, mUsbRegexs);
 
-			state = wrapper.tether(usbIface);
-			Log.d(LOG_TAG, "USB state " + state + " " + usbIface);
+				if (usbIface != null) {
+					state = wrapper.tether(usbIface);
+					Log.d(LOG_TAG, "USB state " + state + " " + usbIface);
+				}
+			}
 		}
 	}
 

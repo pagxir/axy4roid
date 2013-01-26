@@ -22,7 +22,7 @@ static char http_authorization[512] = {
 };
 
 static char socks5_user_password[514] = {
-	"\005proxy\014cAdZnGWTM0dLT"
+	"\005proxy\014AdZnGWTM0dLT"
 };
 
 static const char www_authentication_required[] = {
@@ -329,6 +329,11 @@ static void check_proxy_proto(struct socksproto *up)
 			up->m_flags |= SOCKV5_PROTO;
 			return;
 		}
+
+		if (memchr(&m.base[2], 0x2, len)) {
+			up->m_flags |= SOCKV5_PROTO;
+			return;
+		}
 	}
 
 	if (buf_equal(&m, 0, 'C')) {
@@ -559,6 +564,9 @@ static int sockv5_proto_input(struct socksproto *up)
 
 				default:
 					fprintf(stderr, "socksv5 bad host type!\n");
+					memcpy(up->s.buf, resp_v5, sizeof(resp_v5));
+					up->s.buf[1] = 0x08;
+					send(up->c.fd, up->s.buf, sizeof(resp_v5), 0);
 					goto host_not_found;
 			}
 
@@ -591,6 +599,9 @@ static int sockv5_proto_input(struct socksproto *up)
 					fprintf(stderr, "socksv5 command bind not supported yet!\n");
 				default:
 					fprintf(stderr, "socksv5 command unkown!\n");
+					memcpy(up->s.buf, resp_v5, sizeof(resp_v5));
+					up->s.buf[1] = 0x07;
+					send(up->c.fd, up->s.buf, sizeof(resp_v5), 0);
 					goto host_not_found;
 			}
 

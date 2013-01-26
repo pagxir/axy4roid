@@ -52,6 +52,7 @@ struct sockspeer {
 
 struct socksproto {
 	int m_flags;
+	int op_cmd;
 	int proto_flags;
 	struct waitcb timer;
 	struct waitcb stopper;
@@ -456,7 +457,7 @@ static int sockv5_proto_input(struct socksproto *up)
 	int ret, pat;
 	char buf[8192];
 	char *p, *limit;
-	struct buf_match m;
+	struct buf_match m, n;
 	struct sockspeer *t = &up->c;
 	static u_char resp_v5[] = {
 		0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
@@ -465,13 +466,14 @@ static int sockv5_proto_input(struct socksproto *up)
 	buf_init(&m, up->c.buf, up->c.len);
 	if ((up->m_flags & DOCONNECTING) == 0 &&
 			(up->proto_flags & AUTHED_0) != AUTHED_0) {
+
 		if (buf_equal(&m, 0, 0x05) && buf_valid(&m, 1)) {
 			int nmethod = (up->c.buf[1] & 0xFF);
 
 			if (buf_valid(&m, nmethod + 1)) {
 				buf[0] = 0x05;
-				buf_init(&m, up->c.buf, nmethod + 2);
-				if (buf_find(&m, 2, 0x02) && socks5_user_password[0]) {
+				buf_init(&n, up->c.buf, nmethod + 2);
+				if (buf_find(&n, 2, 0x02) && socks5_user_password[0]) {
 					buf[1] = 0x02;
 					ret = t->ops->op_write(t->fd, buf, 2);
 					if (ret != 2)
@@ -494,14 +496,15 @@ static int sockv5_proto_input(struct socksproto *up)
 				memmove(up->c.buf, p, limit - p);
 				up->c.len = (limit - p);
 				up->proto_flags |= AUTHED_0;
+				buf_init(&m, up->c.buf, up->c.len);
 			}
 		}
 	}
 
-	buf_init(&m, up->c.buf, up->c.len);
 	if ((up->m_flags & DOCONNECTING) == 0 &&
 			(up->proto_flags & (AUTHED_1| AUTHED_0)) == (AUTHED_1| AUTHED_0)) {
 		int l1 = (up->c.buf[1] & 0xFF);
+
 		if (buf_equal(&m, 0, 0x01) && buf_valid(&m, l1 + 2)) {
 			int l2 = (up->c.buf[l1 + 2] & 0xFF);
 			if (buf_valid(&m, l1 + l2 + 2)) {
@@ -526,12 +529,11 @@ static int sockv5_proto_input(struct socksproto *up)
 				memmove(up->c.buf, up->c.buf + l1 + l2 + 3, up->c.len);
 				up->proto_flags &= ~AUTHED_1;
 				up->proto_flags |= AUTHED_Z;
-				fprintf(stderr, "len %d\n", up->c.len);
+				buf_init(&m, up->c.buf, up->c.len);
 			}
 		}
 	}
 
-	buf_init(&m, up->c.buf, up->c.len);
 	if ((up->proto_flags & AUTHED_Z) &&
 			(up->m_flags & DOCONNECTING) == 0) {
 		if (buf_equal(&m, 0, 0x05) && 
@@ -577,6 +579,7 @@ static int sockv5_proto_input(struct socksproto *up)
 			up->addr_in1.sin_port   = in_port1;
 			up->addr_in1.sin_addr   = in_addr1;
 
+			up->op_cmd = up->c.buf[1];
 			switch (up->c.buf[1]) {
 				case 0x00:
 					fprintf(stderr, "socksv5 command udp ass not supported yet!\n");
@@ -611,7 +614,8 @@ static int sockv5_proto_input(struct socksproto *up)
 							ret = t->ops->op_write(t->fd, up->s.buf, sizeof(resp_v5));
 							if (ret != sizeof(resp_v5))
 								goto host_not_found;
-							break;
+							up->m_flags |= DOCONNECTING;
+							goto check_connecting;
 						}
 					}
 					
@@ -645,14 +649,47 @@ check_connecting:
 		up->m_flags |= DIRECT_PROTO;
 		up->m_flags &= ~(SOCKV5_PROTO| DOCONNECTING);
 		memcpy(up->s.buf, resp_v5, sizeof(resp_v5));
-		memcpy(&up->s.buf[4], &up->addr_in1.sin_addr, 4);
-		memcpy(&up->s.buf[8], &up->addr_in1.sin_port, 2);
 
-		slen = sizeof(error);
-		ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, (char *)&error, &slen);
-		if (ret != 0 || error != 0) {
-			up->s.buf[1] = 0x05;
+		error = 0;
+		if (up->op_cmd == 0x01) {
+			memcpy(&up->s.buf[4], &up->addr_in1.sin_addr, 4);
+			memcpy(&up->s.buf[8], &up->addr_in1.sin_port, 2);
+			slen = sizeof(error);
+			ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, (char *)&error, &slen);
+			if (ret != 0 || error != 0) {
+				up->s.buf[1] = 0x05;
+				error = -1;
+			}
+		} else if (up->op_cmd == 0x03) {
+			int fd;
+			struct sockcb *sockcbp;
+
 			error = -1;
+			sockcbp = NULL;
+			slen = sizeof(up->addr_in1);
+			fd = accept(up->s.fd, (struct sockaddr *)&up->addr_in1, &slen);
+			up->s.buf[1] = 0x05;
+
+			if (fd != -1) {
+				sockcbp = sock_attach(fd);
+				memcpy(&up->s.buf[4], &up->addr_in1.sin_addr, 4);
+				memcpy(&up->s.buf[8], &up->addr_in1.sin_port, 2);
+				if (sockcbp != NULL) {
+					sock_detach(up->s.lwipcbp); 
+					closesocket(up->s.fd);
+					up->s.lwipcbp = sockcbp;
+					up->s.fd = fd;
+					up->s.buf[1] = 0x00;
+					error = 0;
+				}
+			}
+
+			if (error != 0) {
+				if (sockcbp != NULL)
+					sock_detach(sockcbp);
+				if (fd != -1)
+					closesocket(fd);
+			}
 		}
 
 		ret = t->ops->op_write(t->fd, up->s.buf, sizeof(resp_v5));
@@ -662,20 +699,42 @@ check_connecting:
 		return 0;
 	}
 
-	if ((up->m_flags & DOCONNECTING) &&
-			!waitcb_active(&up->s.wwait)) {
+	if ((up->m_flags & DOCONNECTING) == DOCONNECTING) {
 		struct sockspeer *t = &up->c;
-		t->ops->write_wait(up->s.lwipcbp, &up->s.wwait);
-		fprintf(stderr, "connect2\n");
+
+		if (t->flags & NO_MORE_DATA) {
+			fprintf(stderr, "peer connection is close!\n");
+			goto host_not_found;
+		}
+
+		switch (up->op_cmd) { 
+			case 0x03:
+				if (!waitcb_active(&up->s.wwait))
+					t->ops->read_wait(up->s.lwipcbp, &up->s.wwait);
+				break;
+
+			case 0x01:
+				if (!waitcb_active(&up->s.wwait))
+					t->ops->write_wait(up->s.lwipcbp, &up->s.wwait);
+				break;
+
+			default:
+				assert(0);
+				break;
+		}
+
 		return 0;
 	}
 
 check_protocol:
 	if (!buf_overflow(&m)) {
+	fprintf(stderr, "host_not_found 0\n");
 		goto host_not_found;
 	} else if (up->c.len == sizeof(up->c.buf)) {
+	fprintf(stderr, "host_not_found 2\n");
 		goto host_not_found;
 	} else if (up->c.flags & NO_MORE_DATA) {
+	fprintf(stderr, "host_not_found 1\n");
 		goto host_not_found;
 	}
 	return 0;
@@ -1002,29 +1061,6 @@ static int do_data_forward(struct socksproto *up,
 		}
 
 	} while (changed);
-
-	return 0;
-}
-
-static int try_reconnect(struct socksproto *up)
-{
-	int newfd;
-	int ret, error;
-	socklen_t len = 0;
-
-	if (waitcb_completed(&up->s.wwait)) {
-		len = sizeof(error);
-		up->m_flags &= ~DOCONNECTING;
-		ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, (char *)&error, &len);
-		if (error != ECONNABORTED) {
-			return 0;
-		}
-
-host_not_found:
-		up->c.flags |= WRITE_BROKEN;
-		up->s.flags |= WRITE_BROKEN;
-		up->m_flags |= UNKOWN_PROTO;
-	}
 
 	return 0;
 }

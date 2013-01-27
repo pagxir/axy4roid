@@ -583,7 +583,10 @@ static int sockv5_proto_input(struct socksproto *up)
 			switch (up->c.buf[1]) {
 				case 0x00:
 					fprintf(stderr, "socksv5 command udp ass not supported yet!\n");
-					break;
+					memcpy(up->s.buf, resp_v5, sizeof(resp_v5));
+					up->s.buf[1] = 0x07;
+					t->ops->op_write(t->fd, up->s.buf, sizeof(resp_v5));
+					goto host_not_found;
 
 				case 0x01:
 					up->c.len = (limit - end);
@@ -702,7 +705,8 @@ check_connecting:
 	if ((up->m_flags & DOCONNECTING) == DOCONNECTING) {
 		struct sockspeer *t = &up->c;
 
-		if (t->flags & NO_MORE_DATA) {
+		if ((t->flags & NO_MORE_DATA) ||
+				t->len == sizeof(t->buf)) {
 			fprintf(stderr, "peer connection is close!\n");
 			goto host_not_found;
 		}
@@ -728,13 +732,10 @@ check_connecting:
 
 check_protocol:
 	if (!buf_overflow(&m)) {
-	fprintf(stderr, "host_not_found 0\n");
 		goto host_not_found;
 	} else if (up->c.len == sizeof(up->c.buf)) {
-	fprintf(stderr, "host_not_found 2\n");
 		goto host_not_found;
 	} else if (up->c.flags & NO_MORE_DATA) {
-	fprintf(stderr, "host_not_found 1\n");
 		goto host_not_found;
 	}
 	return 0;
@@ -978,11 +979,16 @@ static int sockv4_proto_input(struct socksproto *up)
 		return 0;
 	}
 
-	if ((up->m_flags & DOCONNECTING) &&
-			!waitcb_active(&up->s.wwait)) {
+	if ((up->m_flags & DOCONNECTING) == DOCONNECTING) {
 		struct sockspeer *t = &up->c;
-		t->ops->write_wait(up->s.lwipcbp, &up->s.wwait);
-		fprintf(stderr, "connect2\n");
+
+		if ((t->flags & NO_MORE_DATA) ||
+				t->len == sizeof(t->buf))
+			goto host_not_found;
+
+		if (!waitcb_active(&up->s.wwait))
+			t->ops->write_wait(up->s.lwipcbp, &up->s.wwait);
+
 		return 0;
 	}
 

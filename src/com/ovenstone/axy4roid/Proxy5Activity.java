@@ -57,7 +57,7 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		AdManager.init(this, "537ef88653a2993c", "b9e10bcfe994a9fb", 30, false);
+		AdManager.init(this, "602d0df09489ae35", "b1cc38111305c51a", 30, false);
 
 		LinearLayout adViewLayout = (LinearLayout) findViewById(R.id.adViewLayout);
 		adViewLayout.addView(new AdView(this), 

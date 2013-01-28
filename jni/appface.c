@@ -58,7 +58,7 @@ static void setSocks5UserPassword(JNIEnv *env, jclass clazz, jstring info)
 }
 
 //定义目标类名称
-static const char *className = "com/myfield/AppFace";
+static const char *className = "com/ovenstone/axy4roid/AppFace";
 
 //定义方法隐射关系
 static JNINativeMethod methods[] = {

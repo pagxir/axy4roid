@@ -1,4 +1,4 @@
-package com.myfield;
+package com.ovenstone.axy4roid;
 
 public class AppFace {
 	static native void start();

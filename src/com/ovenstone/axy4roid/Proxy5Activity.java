@@ -1,4 +1,4 @@
-package com.myfield;
+package com.ovenstone.axy4roid;
 
 import java.net.InetAddress;
 import java.net.NetworkInterface;

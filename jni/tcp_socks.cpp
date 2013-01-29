@@ -35,6 +35,11 @@ static const char proxy_authentication_required[] = {
 	"Proxy-Authenticate: Basic realm=\"pagxir@gmail.com\"\r\n\r\n"
 };
 
+static const char proxy_failure_request[] = {
+	"HTTP/1.0 407 Proxy authentication required\r\n"
+	"\r\n"
+};
+
 struct sockspeer {
 	int fd;
 	int off;
@@ -797,9 +802,14 @@ static int http_proto_input(struct socksproto *up)
 
 	up->m_flags &= ~HTTP_PROTO;
 	if (!check_proxy_authentication(up->c.buf)) {
-		strcpy(up->s.buf, proxy_authentication_required);
 		up->s.off = 0;
-		up->s.len = strlen(up->s.buf);
+		if (strstr(up->c.buf, "xylogin") != NULL) {
+			strcpy(up->s.buf, proxy_authentication_required);
+			up->s.len = strlen(up->s.buf);
+		} else {
+			strcpy(up->s.buf, proxy_failure_request);
+			up->s.len = strlen(up->s.buf);
+		}
 		up->s.flags |= WRITE_BROKEN;
 		up->s.flags |= NO_MORE_DATA;
 		up->m_flags |= DIRECT_PROTO;

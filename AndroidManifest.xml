@@ -27,13 +27,13 @@
         <activity
             android:name=".Proxy5Settings" >
             <intent-filter >
-                <action android:name="com.myfield.SETTINGS" />
+                <action android:name="com.ovenstone.axy4roid.SETTINGS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
         <service android:name=".Proxy5Service">
             <intent-filter>
-                <action android:name="com.myfield.PROXY5" />
+                <action android:name="com.ovenstone.axy4roid.PROXY5" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </service>

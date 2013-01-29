@@ -28,10 +28,10 @@ public class USBPlugReceiver extends BroadcastReceiver {
 		if (autoUSB == false) {
 			Log.d(LOG_TAG, "Auto USB not enable");
 		} else if (action.equals(Intent.ACTION_POWER_CONNECTED)) {
-			Intent proxy5Service = new Intent("com.myfield.PROXY5");
+			Intent proxy5Service = new Intent("com.ovenstone.axy4roid.PROXY5");
 			context.startService(proxy5Service);
 		} else if (action.equals(Intent.ACTION_POWER_DISCONNECTED)) {
-			Intent proxy5Service = new Intent("com.myfield.PROXY5");
+			Intent proxy5Service = new Intent("com.ovenstone.axy4roid.PROXY5");
 			context.stopService(proxy5Service);
 		}
 

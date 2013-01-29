@@ -15,7 +15,7 @@ public class Proxy5Service extends Service implements Runnable {
 	private boolean running = false;
 	
 	static final String TAG = "PROXY5";
-	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
+	static final String SETTINGS_KEY = "com.ovenstone.axy4roid.SETTINGS";
 
 	private Proxy5Controler proxy5Controler = new Proxy5Controler();
 	public class Proxy5Controler extends Binder implements IProxy5Control {

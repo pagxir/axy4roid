@@ -11,7 +11,6 @@ import android.preference.PreferenceActivity;
 
 public class Proxy5Settings extends PreferenceActivity {
 	static final String LOG_TAG ="Proxy5Settings";
-	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
 
 	SharedPreferences prefs = null;
 

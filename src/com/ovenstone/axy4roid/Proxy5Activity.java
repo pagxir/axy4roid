@@ -27,8 +27,7 @@ import android.view.MenuItem;
 
 public class Proxy5Activity extends Activity implements OnClickListener {
 	static final String LOG_TAG ="Proxy5Activity";
-	static final String SETTINGS_KEY = "com.myfield.SETTINGS";
-	private static final Intent proxy5Service = new Intent("com.myfield.PROXY5");
+	private static final Intent proxy5Service = new Intent("com.ovenstone.axy4roid.PROXY5");
 
 	boolean binded = false;
 	Proxy5Service.Proxy5Controler proxy5Controler = null;
@@ -179,7 +178,7 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 			case Menu.FIRST + 1:
-				Intent settings = new Intent("com.myfield.SETTINGS");
+				Intent settings = new Intent("com.ovenstone.axy4roid.SETTINGS");
 				startActivity(settings);
 				break;
 		}

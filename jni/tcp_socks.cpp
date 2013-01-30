@@ -17,6 +17,10 @@ static int  socksproto_run(struct socksproto *up);
 #define WRITE_BROKEN 2
 
 static int link_count = 0;
+static char http_maigc_url[512] = {
+	"http://www.163.com/"
+};
+
 static char http_authorization[512] = {
 	"dXNlcjpwYXNzd29yZA=="
 };
@@ -81,6 +85,19 @@ int error_equal(int fd, int code)
 #endif
 
 	return (error == code);
+}
+
+extern "C" int set_http_magic_url(const char *info)
+{
+	size_t size;
+
+	size = sizeof(http_maigc_url);
+	if (strlen(info) < size) {
+		strncpy(http_maigc_url, info, size);
+		return 0;
+	}
+
+	return -1;
 }
 
 extern "C" int set_http_authentication(const char *info)
@@ -757,6 +774,7 @@ static int http_proto_input(struct socksproto *up)
 	int error;
 	int cutlen = 0;
 	int use_post = 0;
+	int is_magic_url = 1;
 	struct in_addr in_addr1;
 	char buf[sizeof(up->c.buf)] = "";
 	char *bound, *port, *line, *p;
@@ -770,6 +788,10 @@ static int http_proto_input(struct socksproto *up)
 		if (sscanf(up->c.buf, "POST %s HTTP/1.%*d\r\n", buf) != 1)
 			goto host_not_found;
 		use_post = 1;
+	}
+
+	if (*http_maigc_url != 0) {
+		is_magic_url = !strcmp(buf, http_maigc_url);
 	}
 
 	if (strncmp(buf, "http://", 7) != 0) {
@@ -803,7 +825,7 @@ static int http_proto_input(struct socksproto *up)
 	up->m_flags &= ~HTTP_PROTO;
 	if (!check_proxy_authentication(up->c.buf)) {
 		up->s.off = 0;
-		if (strstr(up->c.buf, "xylogin") != NULL) {
+		if (is_magic_url != 0) {
 			strcpy(up->s.buf, proxy_authentication_required);
 			up->s.len = strlen(up->s.buf);
 		} else {

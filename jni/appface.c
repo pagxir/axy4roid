@@ -35,6 +35,17 @@ static void stopProxy(JNIEnv *env, jclass clazz)
 	stop_proxy();
 }
 
+int set_http_magic_url(const char *info);
+static void setHTTPAuthorizationURL(JNIEnv *env, jclass clazz, jstring info)
+{
+	const char *str;
+
+	str = (*env)->GetStringUTFChars(env, info, 0);
+	set_http_magic_url(str);
+	(*env)->ReleaseStringUTFChars(env, info, str);
+	return;
+}
+
 int set_http_authentication(const char *info);
 static void setHTTPAuthorization(JNIEnv *env, jclass clazz, jstring info)
 {
@@ -67,7 +78,8 @@ static JNINativeMethod methods[] = {
 	{"loop", "()V", (void*)loopProxy},
 	{"stop", "()V", (void*)stopProxy},
 	{"setHTTPAuthorization", "(Ljava/lang/String;)V", (void*)setHTTPAuthorization},
-	{"setSocks5UserPassword", "(Ljava/lang/String;)V", (void*)setSocks5UserPassword}
+	{"setSocks5UserPassword", "(Ljava/lang/String;)V", (void*)setSocks5UserPassword},
+	{"setHTTPAuthorizationURL", "(Ljava/lang/String;)V", (void*)setHTTPAuthorizationURL}
 };
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved){

@@ -18,6 +18,19 @@
 		android:defaultValue="AdZnGWTM0dLT"
 		android:dependency="enable_authorization"
 		android:key="password" />
+	<CheckBoxPreference
+		android:key="enable_smart_authorization"
+		android:dependency="enable_authorization"
+		android:title="@string/enable_smart_authorization"
+		android:summary="@string/enable_smart_authorization_summary"
+		android:defaultValue="true"/>
+	<EditTextPreference
+		android:key="authorization_url"
+		android:name="authorization_url"
+		android:title="@string/authorization_url"
+		android:summary="@string/authorization_url_summary"
+		android:defaultValue="http://code.google.com/p/deadshot/"
+		android:dependency="enable_smart_authorization"/>
 	<EditTextPreference
 		android:key="port"
 		android:title="@string/port"
@@ -29,7 +42,8 @@
 		android:title="@string/usb_binding"
 		android:summary="@string/usb_binding_summary"
 		android:defaultValue="false"/>
-	<CheckBoxPreference android:key="auto_tethering"
+	<CheckBoxPreference
+		android:key="auto_tethering"
 		android:title="@string/auto_tethering"
 		android:summary="@string/auto_tethering_summary"
 		android:defaultValue="false"/>

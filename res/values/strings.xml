@@ -20,5 +20,9 @@
     <string name="usb_binding_summary">auto start proxy service when usb wire connected</string>
     <string name="auto_tethering">USB Tether</string>
     <string name="auto_tethering_summary">auto tethering usb when usb wire connected</string>
+    <string name="enable_smart_authorization">Enable Smart Authorization</string>
+    <string name="enable_smart_authorization_summary">enable smart authorization</string>
+    <string name="authorization_url">Smart Authorization URL</string>
+    <string name="authorization_url_summary">smart authorization URL</string>
 
 </resources>

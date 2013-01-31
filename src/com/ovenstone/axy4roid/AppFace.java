@@ -7,6 +7,7 @@ public class AppFace {
 	static native void setPort(int port);
 	static native void setHTTPAuthorization(String info);
 	static native void setSocks5UserPassword(String info);
+	static native void setHTTPAuthorizationURL(String info);
 
 	static {
 		System.loadLibrary("proxy5");

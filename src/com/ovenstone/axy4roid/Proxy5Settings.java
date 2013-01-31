@@ -31,6 +31,7 @@ public class Proxy5Settings extends PreferenceActivity {
 		String port;
 		String user;
 		String password;
+		String authorizationUrl;
 		SharedPreferences pref;
 
 		val = 1800;
@@ -38,6 +39,7 @@ public class Proxy5Settings extends PreferenceActivity {
 		port = pref.getString("port", "1800");
 		user = pref.getString("user", "proxy");
 		password = pref.getString("password", "AdZnGWTM0dLT");
+		authorizationUrl = pref.getString("authorization_url", "");
 
 		try {
 			val = Integer.valueOf(port);
@@ -46,6 +48,9 @@ public class Proxy5Settings extends PreferenceActivity {
 		} catch (NumberFormatException e) {
 			e.printStackTrace();
 		}
+
+		boolean use_smart_authorization = isEnabled(context, "enable_smart_authorization");
+		AppFace.setHTTPAuthorizationURL(use_smart_authorization? authorizationUrl: "");
 
 		if (!isEnabled(context, "enable_authorization")) {
 			AppFace.setHTTPAuthorization("");

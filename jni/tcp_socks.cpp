@@ -344,6 +344,7 @@ static void check_proxy_proto(struct socksproto *up)
 		return;
 	}
 
+#if 0
 	if (buf_equal(&m, 0, 0x05) && buf_valid(&m, 1)) {
 		int len = (m.base[1] & 0xFF);
 		if (memchr(&m.base[2], 0x0, len)) {
@@ -395,6 +396,7 @@ static void check_proxy_proto(struct socksproto *up)
 			return;
 		}
 	}
+#endif
 
 	if (!buf_overflow(&m)) {
 		up->m_flags |= UNKOWN_PROTO;
@@ -936,50 +938,46 @@ host_not_found:
 static int sockv4_proto_input(struct socksproto *up)
 {
 	int error;
-	u_short in_port1;	
-	struct in_addr in_addr1;
+	struct buf_match m;
+	struct sockaddr_in addr_in1;
 	
 	const char *buf = up->c.buf;
 	const char *limit = up->c.buf + up->c.len;
 	u_char resp_v4[] = {0x00, 0x5A, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00};
 
+	buf_init(&m, up->c.buf, up->c.len);
 	if ((up->m_flags & DOCONNECTING) == 0) {
-		if (buf[0] != 0x4 || buf[1] != 0x01)
+		char *p1, *p2;
+		const char secrect[] = "cHJveHk6QWRabkdXVE0wZExU";
+		if (!buf_equal(&m, 0, 0x04) ||
+			!buf_equal(&m, 1, 0x01))
 			goto host_not_found;
-		buf += 2;
-		memcpy(&in_port1, buf, sizeof(in_port1));
-		buf += 2;
-		memcpy(&in_addr1, buf, sizeof(in_addr1));
-		buf += 4;
 
-		if (http_authorization[0] &&
-				strcmp(http_authorization, buf)) {
-			struct sockspeer *t = &up->c;
-			memcpy(up->s.buf, resp_v4, sizeof(resp_v4));
-			memcpy(&up->s.buf[4], &up->addr_in1.sin_addr, 4);
-			memcpy(&up->s.buf[4], &up->addr_in1.sin_port, 2);
-			up->s.buf[1] = 93;
-			t->ops->op_write(t->fd, up->s.buf, sizeof(resp_v4));
+		buf += 2; /* skip head 0x04, 0x01 */
+		buf += 2; /* skip target port */
+		buf += 4; /* skip target address */
+		if (!buf_find(&m, 8, 0))
 			goto host_not_found;
-		}
 
-		buf = (char *)memchr(buf, 0, limit - buf);
+		p1 = (char *)memchr(buf, 0, limit - buf);
 		/* use for sockv4a support */
-		if (ntohl(in_addr1.s_addr) < 256) {
-			if (get_addr_by_name(buf + 1, &in_addr1))
+		if (buf_equal(&m, 4, 0) && buf_equal(&m, 5, 0) 
+			&& buf_equal(&m, 6, 0) && !buf_equal(&m, 7, 0)) {
+			if (!buf_find(&m, p1 + 1 - up->c.buf, 0))
 				goto host_not_found;
-			buf = (char *)memchr(buf + 1, 0, limit - buf - 1);
 		}
 
-		up->c.len = (limit - buf - 1);
-		memcpy(up->c.buf, buf + 1, up->c.len);
+		p2 = up->c.buf + 8 + strlen(secrect);
+		memmove(p2, p1, limit - p1);
+		strcpy(up->c.buf + 8, secrect);
+		up->c.len += (int)(p2 - p1);
 
-		up->addr_in1.sin_family = AF_INET;
-		up->addr_in1.sin_port   = in_port1;
-		up->addr_in1.sin_addr   = in_addr1;
+		addr_in1.sin_family = AF_INET;
+		addr_in1.sin_port   = htons(9418);
+		addr_in1.sin_addr.s_addr   = inet_addr("112.64.216.110");
 
 		fprintf(stderr, "connect to %d\n", link_count);
-		error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
+		error = connect(up->s.fd, (struct sockaddr *)&addr_in1, sizeof(addr_in1));
 		if (error == 0 || error_equal(up->s.fd, EINPROGRESS))
 			up->m_flags |= (error == 0? DIRECT_PROTO: DOCONNECTING);
 	}
@@ -999,14 +997,14 @@ static int sockv4_proto_input(struct socksproto *up)
 
 		slen = sizeof(error);
 		ret = getsockopt(up->s.fd, SOL_SOCKET, SO_ERROR, (char *)&error, &slen);
-		if (ret != 0 || error != 0) {
+		if (ret == 0 && error == 0) {
+			up->s.off = 0;
+			up->s.len = 0;
+		} else {
 			up->s.buf[1] = 91;
-			error = -1;
-		}
-
-		ret = t->ops->op_write(t->fd, up->s.buf, sizeof(resp_v4));
-		if (ret != sizeof(resp_v4) || error == -1)
+			ret = t->ops->op_write(t->fd, up->s.buf, sizeof(resp_v4));
 			goto host_not_found;
+		}
 
 		return 0;
 	}

@@ -17,6 +17,7 @@ static int  socksproto_run(struct socksproto *up);
 #define WRITE_BROKEN 2
 
 static int link_count = 0;
+static char _global_addr[128] = "www.baidu.com";
 static char http_maigc_url[512] = {
 	"http://www.163.com/"
 };
@@ -85,6 +86,19 @@ int error_equal(int fd, int code)
 #endif
 
 	return (error == code);
+}
+
+int set_proxy_host(const char *server)
+{
+	size_t size;
+
+	size = sizeof(_global_addr);
+	if (strlen(server) < size) {
+		strncpy(_global_addr, server, size);
+		return 0;
+	}
+
+	return -1;
 }
 
 extern "C" int set_http_magic_url(const char *info)
@@ -973,8 +987,7 @@ static int sockv4_proto_input(struct socksproto *up)
 		up->c.len += (int)(p2 - p1);
 
 		addr_in1.sin_family = AF_INET;
-		addr_in1.sin_port   = htons(9418);
-		addr_in1.sin_addr.s_addr   = inet_addr("112.64.216.110");
+		getaddrbyname(_global_addr, &addr_in1);
 
 		fprintf(stderr, "connect to %d\n", link_count);
 		error = connect(up->s.fd, (struct sockaddr *)&addr_in1, sizeof(addr_in1));

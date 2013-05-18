@@ -87,6 +87,27 @@ void listen_statecb(void *ignore)
 	}
 }
 
+static void (*_on_accept_complete)(int fd) = new_tcp_socks;
+
+extern "C" void set_server_type(int type)
+{
+	switch (type) {
+		case 0:
+			_on_accept_complete = new_tcp_socks;
+			break;
+
+		case 1:
+			_on_accept_complete = new_pstcp_channel;
+			break;
+
+		default:
+			_on_accept_complete = new_tcp_socks;
+			break;
+	}
+
+	return;
+}
+
 void listen_callback(void *context)
 {
 	int newfd;
@@ -98,11 +119,7 @@ void listen_callback(void *context)
 	if (newfd != -1) {
 		fprintf(stderr, "new client: %s:%u\n",
 				inet_ntoa(newaddr.sin_addr), ntohs(newaddr.sin_port));
-#ifdef _HTTP_SERVER_
-		new_pstcp_channel(newfd);
-#else
-		new_tcp_socks(newfd);
-#endif
+		(*_on_accept_complete)(newfd);
 	}
 
 	error = sock_read_wait(_sockcbp, &_event);

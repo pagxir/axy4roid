@@ -14,7 +14,7 @@
     <string name="password">Password</string>
     <string name="password_summary">proxy password</string>
     <string name="enable_authorization">Enable Authorization</string>
-    <string name="enable_authorization_smmary">enable authorization</string>
+    <string name="enable_authorization_summary">enable authorization</string>
     <string name="port">Port</string>
     <string name="port_summary">the listen tcp port of proxy</string>
     <string name="usb_binding">USB Binding</string>
@@ -25,5 +25,7 @@
     <string name="enable_smart_authorization_summary">enable smart authorization</string>
     <string name="authorization_url">Smart Authorization URL</string>
     <string name="authorization_url_summary">smart authorization URL</string>
+    <string name="enable_http_mode">Enable HTTP Mode</string>
+    <string name="enable_http_mode_summary">enable http mode</string>
 
 </resources>

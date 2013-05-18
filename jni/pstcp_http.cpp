@@ -462,7 +462,7 @@ void pstcp_http::tc_callback(void * context)
 void new_pstcp_channel(int fd)
 {
 	pstcp_http * chan;
-	const char * path = "/local";
+	const char * path = "/";
    	chan = new pstcp_http(fd, path);
 
 	if (chan == NULL) {

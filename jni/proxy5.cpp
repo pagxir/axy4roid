@@ -51,8 +51,13 @@ extern "C" int stop_proxy(void)
 	return 0;
 }
 
+extern "C" int proxy_setport(int port);
 int main(int argc, char *argv[])
 {
+	if (argc == 2)
+		if (atoi(argv[1]) > 0)
+			proxy_setport(atoi(argv[1]));
+
     start_proxy();
     for ( ;loop_proxy(); );
 	printf("EXITING\n");

@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <wait/module.h>
 #include <wait/platform.h>
@@ -90,7 +92,7 @@ static int get_request_range(const char * request, size_t * plength, size_t * po
 	while (isspace(*opt)) opt++;
 
 	if (strncmp(opt, "bytes=", 6) == 0) {
-		sscanf(opt + 6, "%u", poffset);
+		sscanf(opt + 6, "%lu", poffset);
 		return 1;
 	}
 
@@ -268,6 +270,16 @@ const char * get_file_type(const char * path)
 	return "application/octet-stream";
 }
 
+static long get_file_length(FILE *fp)
+{
+	struct stat64 st;
+
+	if (fstat64(fileno(fp), &st) == 0)
+		return st.st_size;
+
+	return 0;
+}
+
 int pstcp_http::create_response_stream(const char * path0, int range, size_t length, size_t offset)
 {
 	int fldcnt = 0;
@@ -333,9 +345,7 @@ int pstcp_http::create_response_stream(const char * path0, int range, size_t len
 		return 0;
 	}
 
-	fseek(m_file, 0, SEEK_END);
-	file_len = ftell(m_file);
-	rewind(m_file);
+	file_len = get_file_length(m_file);
 
 	switch (range) {
 		case 0:

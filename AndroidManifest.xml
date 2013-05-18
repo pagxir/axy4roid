@@ -45,5 +45,31 @@
                 <action android:name="android.intent.action.UMS_DISCONNECTED"/>
             </intent-filter>
         </receiver>
+        <activity android:name=".SharedDialog"
+            android:theme="@android:style/Theme.Dialog" android:label="@string/pick_file">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="text/x-vcard" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="text/html" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/vnd.ms-excel" />
+                <data android:mimeType="application/msword" />
+                <data android:mimeType="application/vnd.ms-powerpoint" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="x-mixmedia/*" />
+                <data android:mimeType="text/x-vcard" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

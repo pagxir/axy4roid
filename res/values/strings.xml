@@ -3,6 +3,7 @@
 
     <string name="hello">Hello World, Proxy5Activity!</string>
     <string name="app_name">Proxy5</string>
+    <string name="pick_file">Pack File</string>
     <string name="start">START</string>
     <string name="stop">STOP</string>
     <string name="address">Network Address</string>

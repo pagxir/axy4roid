@@ -51,6 +51,7 @@ public class Proxy5Settings extends PreferenceActivity {
 
 		boolean use_smart_authorization = isEnabled(context, "enable_smart_authorization");
 		AppFace.setHTTPAuthorizationURL(use_smart_authorization? authorizationUrl: "");
+		AppFace.setServerType(isEnabled(context, "http_mode")? 1: 0);
 
 		if (!isEnabled(context, "enable_authorization")) {
 			AppFace.setHTTPAuthorization("");

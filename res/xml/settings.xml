@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+	<CheckBoxPreference android:key="http_mode"
+		android:title="@string/enable_http_mode"
+		android:summary="@string/enable_http_mode_summary"/>
 	<CheckBoxPreference android:key="enable_authorization"
 		android:title="@string/enable_authorization"
-		android:summary="@string/enable_authorization_smmary"
+		android:summary="@string/enable_authorization_summary"
 		android:defaultValue="true"/>
 	<EditTextPreference
 		android:name="user"

@@ -18,6 +18,12 @@ static void setProxyPort(JNIEnv *env, jclass clazz, jint port)
 	proxy_setport(port);
 }
 
+static void setServerType(JNIEnv *env, jclass clazz, jint port)
+{
+	LOGE("call setServerType");
+	set_server_type(port);
+}
+
 static void startProxy(JNIEnv *env, jclass clazz)
 {
 	LOGE("call startProxy");
@@ -73,10 +79,11 @@ static const char *className = "com/ovenstone/axy4roid/AppFace";
 
 //定义方法隐射关系
 static JNINativeMethod methods[] = {
-	{"setPort", "(I)V", (void*)setProxyPort},
 	{"start", "()V", (void*)startProxy},
 	{"loop", "()V", (void*)loopProxy},
 	{"stop", "()V", (void*)stopProxy},
+	{"setPort", "(I)V", (void*)setProxyPort},
+	{"setServerType", "(I)V", (void*)setServerType},
 	{"setHTTPAuthorization", "(Ljava/lang/String;)V", (void*)setHTTPAuthorization},
 	{"setSocks5UserPassword", "(Ljava/lang/String;)V", (void*)setSocks5UserPassword},
 	{"setHTTPAuthorizationURL", "(Ljava/lang/String;)V", (void*)setHTTPAuthorizationURL}

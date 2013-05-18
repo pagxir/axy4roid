@@ -5,6 +5,7 @@ public class AppFace {
 	static native void loop();
 	static native void stop();
 	static native void setPort(int port);
+	static native void setServerType(int type);
 	static native void setHTTPAuthorization(String info);
 	static native void setSocks5UserPassword(String info);
 	static native void setHTTPAuthorizationURL(String info);

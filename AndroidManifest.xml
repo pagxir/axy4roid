@@ -52,6 +52,7 @@
                 <action android:name="android.intent.action.UMS_DISCONNECTED"/>
             </intent-filter>
         </receiver>
+
         <!-- 广告效果的接受器 -->
         <receiver android:name="net.youmi.android.YoumiReceiver">
             <intent-filter>
@@ -60,6 +61,15 @@
                 <data android:scheme="package"/>
             </intent-filter>
         </receiver>
+
+        <activity
+            android:label="@string/receive"
+            android:name=".ReceiveDialog" >
+            <intent-filter >
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <activity android:name=".SharedDialog"
             android:theme="@android:style/Theme.Dialog" android:label="@string/pick_file">

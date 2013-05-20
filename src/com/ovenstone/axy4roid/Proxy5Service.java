@@ -9,7 +9,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 public class Proxy5Service extends Service implements Runnable {
-	private int PORT = 1800;
+	public static int PORT = 1800;
 	private Thread worker = null;
 	private boolean exited = true;
 	private boolean running = false;

@@ -145,7 +145,7 @@ public class SharedDialog extends Activity {
 			if (cursor.moveToFirst()) {
 				String path = cursor.getString(index);  
 				Log.v(LOG_TAG, "File Path: " + path);
-				broadcastFilePath(path);
+				broadcastFilePath("file://" + path);
 				return path;
 			}
 		}

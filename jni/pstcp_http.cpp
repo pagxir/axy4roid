@@ -190,6 +190,28 @@ static int get_request_path(const char * request, char * buf, size_t len)
 	return 0;
 }
 
+char resp302_template[] = {
+	"HTTP/1.1 302 Not Found\r\n"
+	"Server: nginx/0.7.63\r\n"
+	"Date: Mon, 03 Jan 2011 12:15:23 GMT\r\n"
+	"Content-Type: text/html\r\n"
+	"Content-Length: %u\r\n"
+	"Location: /mnt/sdcard/Axy4roid.apk\r\n"
+	"Connection: close\r\n"
+	"\r\n"
+};
+
+char resp302_body[] = {
+	"<html>\r\n"
+	"<head><title>302 location redirection</title></head>\r\n"
+	"<body bgcolor='white'>\r\n"
+	"<center><h1>302 location redirection</h1></center>\r\n"
+	"<hr><center>nginx/0.7.63</center>\r\n"
+	"</body>\r\n"
+    "</html>\r\n"
+};
+
+
 char resp404_template[] = {
 	"HTTP/1.1 404 Not Found\r\n"
 	"Server: nginx/0.7.63\r\n"
@@ -289,8 +311,16 @@ int pstcp_http::create_response_stream(const char * path0, int range, size_t len
 
 	path = path0;
 	pfolder = m_folder + strlen(m_folder);
-	if (*path == 0 || *path != '/')
+	if (*path == 0 || *path != '/' || strcmp(path, "/") == 0) {
+		sprintf(m_rbuf, resp302_template, strlen(resp302_body));
+		strncat(m_rbuf, resp302_body, sizeof(m_rbuf));
+		m_rlen = strlen(m_rbuf);
+		m_flags |= TF_EOF1;
+		return 0;
+	}
+#if 0
 		path = "/index.html";
+#endif
 	
 	while (*++path && fldcnt >= 0) {
 

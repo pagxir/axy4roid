@@ -17,6 +17,11 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.Environment;
 import android.app.DownloadManager;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
+import android.database.Cursor;
+import android.view.View;
+import android.widget.Toast;
 
 import java.io.*;
 import java.nio.*;
@@ -41,17 +46,19 @@ public class ReceiveDialog extends Activity {
 		mbroadcastThread = new Thread(receiver);
 		mbroadcastThread.start();
 
+		IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+		filter.addAction(DownloadManager.ACTION_NOTIFICATION_CLICKED);
+		registerReceiver(onNotification, filter);
+
 	}
 
 	final private Runnable receiver = new Runnable() {
 		public void run() {
-
 			String path;
 			ByteBuffer buffer;
 			DatagramChannel channel;
 
 			// Start download
-
 			try {
 				channel = DatagramChannel.open();
 				channel.socket().setBroadcast(true);
@@ -67,6 +74,8 @@ public class ReceiveDialog extends Activity {
 					// This put the download in the same Download dir the browser uses
 					String filename = uri.getPath().replaceAll(".*/", "");
 					r.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
+					r.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
+					r.setAllowedOverRoaming(false);
 					//r.setMimeType("application/octet-stream");
 					r.setVisibleInDownloadsUi(true);
 					r.setShowRunningNotification(true);
@@ -94,6 +103,7 @@ public class ReceiveDialog extends Activity {
 	public void onDestroy() {
 		try {
 			quited = true;
+    		unregisterReceiver(onNotification);
 			mbroadcastThread.interrupt();
 			mbroadcastThread.join();
 		} catch (Exception e) {
@@ -101,4 +111,72 @@ public class ReceiveDialog extends Activity {
 		}
 		super.onDestroy();
 	}
+
+	public void queryStatus(int lastDownload) {
+		Cursor c = mDownloadManager.query(new DownloadManager.Query().setFilterById(lastDownload));
+
+		if (c == null) {
+			Toast.makeText(this, "Download not found!", Toast.LENGTH_LONG).show();
+		} else {
+			c.moveToFirst();
+
+			Log.d(getClass().getName(), "COLUMN_ID: "+
+					c.getLong(c.getColumnIndex(DownloadManager.COLUMN_ID)));
+			Log.d(getClass().getName(), "COLUMN_BYTES_DOWNLOADED_SO_FAR: "+
+					c.getLong(c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)));
+			Log.d(getClass().getName(), "COLUMN_LAST_MODIFIED_TIMESTAMP: "+
+					c.getLong(c.getColumnIndex(DownloadManager.COLUMN_LAST_MODIFIED_TIMESTAMP)));
+			Log.d(getClass().getName(), "COLUMN_LOCAL_URI: "+
+					c.getString(c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)));
+			Log.d(getClass().getName(), "COLUMN_STATUS: "+
+					c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS)));
+			Log.d(getClass().getName(), "COLUMN_REASON: "+
+					c.getInt(c.getColumnIndex(DownloadManager.COLUMN_REASON)));
+
+			Toast.makeText(this, statusMessage(c), Toast.LENGTH_LONG).show();
+		}
+	}
+
+	private String statusMessage(Cursor c) {
+		String msg = "???";
+
+		switch(c.getInt(c.getColumnIndex(DownloadManager.COLUMN_STATUS))) {
+			case DownloadManager.STATUS_FAILED:
+				msg = "Download failed!";
+				break;
+
+			case DownloadManager.STATUS_PAUSED:
+				msg = "Download paused!";
+				break;
+
+			case DownloadManager.STATUS_PENDING:
+				msg = "Download pending!";
+				break;
+
+			case DownloadManager.STATUS_RUNNING:
+				msg = "Download in progress!";
+				break;
+
+			case DownloadManager.STATUS_SUCCESSFUL:
+				msg = "Download complete!";
+				break;
+
+			default:
+				msg = "Download is nowhere in sight";
+				break;
+		}
+
+		return(msg);
+	}
+
+	BroadcastReceiver onNotification = new BroadcastReceiver() {
+		public void onReceive(Context context, Intent intent) {
+			if (intent.getAction().equals(DownloadManager.ACTION_DOWNLOAD_COMPLETE)) {
+				Toast.makeText(context, "Download finish!", Toast.LENGTH_LONG).show();
+				startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS));
+			} else {
+				Toast.makeText(context, "Ummmm...hi!", Toast.LENGTH_LONG).show();
+			}
+		}
+	};
 }

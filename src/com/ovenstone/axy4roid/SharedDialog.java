@@ -60,13 +60,11 @@ public class SharedDialog extends Activity {
 					lines += "\n";
 				}
 			} else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
-				if (type.startsWith("image/")) {
-					ArrayList<Uri> imageUris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-					for (Uri uri: imageUris) {
-						Log.v(LOG_TAG, "imageUri: " + uri);
-						lines += outputMediaPath(uri);
-						lines += "\n";
-					}
+				ArrayList<Uri> imageUris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+				for (Uri uri: imageUris) {
+					Log.v(LOG_TAG, "imageUri: " + uri);
+					lines += outputMediaPath(uri);
+					lines += "\n";
 				}
 			} else {
 				Log.v(LOG_TAG, "UNKOWN Action: " + action);

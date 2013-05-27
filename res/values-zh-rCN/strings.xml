@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">代理服务器</string>
+    <string name="pick_file">发送文件</string>
+    <string name="start">启动</string>
+    <string name="stop">停止</string>
+    <string name="address">网络地址</string>
+    <string name="settings">设置</string>
+    <string name="tether">激活USB热点</string>
+    <string name="user">用户名</string>
+    <string name="user_summary">用于代理认证的用户名</string>
+    <string name="password">密码</string>
+    <string name="password_summary">用于代理认证的密码</string>
+    <string name="enable_authorization">启用认证</string>
+    <string name="enable_authorization_summary">启用认证功能</string>
+    <string name="port">端口</string>
+    <string name="port_summary">代理服务器的端口</string>
+    <string name="usb_binding">USB热点绑定</string>
+    <string name="usb_binding_summary">当USB热点激活时自动启动服务</string>
+    <string name="auto_tethering">USB</string>
+    <string name="auto_tethering_summary">当插数据线,自动激活USB热点</string>
+    <string name="enable_smart_authorization">智能认证</string>
+    <string name="enable_smart_authorization_summary">启用智能认证</string>
+    <string name="authorization_url">智能认证URL</string>
+    <string name="authorization_url_summary">智能认证的 URL</string>
+    <string name="enable_http_mode">HTTP模式</string>
+    <string name="enable_http_mode_summary">启动HTTP模式</string>
+
+</resources>

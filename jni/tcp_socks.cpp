@@ -11,14 +11,16 @@
 
 static void tc_cleanup(void *context);
 static void tc_callback(void *context);
-static int  socksproto_run(struct socksproto *up);
+static int socksproto_run(struct socksproto *up);
+static int renew_http_socks(struct socksproto *up);
 
 #define NO_MORE_DATA 1
 #define WRITE_BROKEN 2
+#define GET_LENGTHED 4
 
 static int link_count = 0;
 static char http_maigc_url[512] = {
-	"http://www.163.com/"
+	""
 };
 
 static char http_authorization[512] = {
@@ -49,6 +51,7 @@ struct sockspeer {
 	int off;
 	int len;
 	int flags;
+	int limit;
 	char buf[8192];
 	struct sockop *ops;
 	struct sockcb *lwipcbp;
@@ -63,6 +66,7 @@ struct socksproto {
 	int m_flags;
 	int op_cmd;
 	int proto_flags;
+	int use_http;
 	struct waitcb timer;
 	struct waitcb stopper;
 	struct sockspeer c, s;
@@ -126,12 +130,69 @@ extern "C" int set_socks5_user_password(const char *info)
 	return -1;
 }
 
+static const char *get_line_by_key(const char *buf, size_t len, const char *key)
+{
+	const char *p;
+	size_t l = strlen(key);
+	const char *limit = buf + len -l;
+
+	if (l >= len) {
+		return 0;
+	}
+
+	p = (char *)memchr(buf, '\n', len);
+	for (p = buf; p < limit; p++) {
+		if (*p == '\n' &&
+			strncasecmp(p + 1, key, l) == 0) {
+			return (p + 1);
+		}
+	}
+
+	return 0;
+}
+
+static int check_transfer_encoding(const char *buf, size_t len, const char *encoding)
+{
+	const char *p;
+	const char *line = get_line_by_key(buf, len, "Transfer-Encoding:");
+	if (line == NULL) {
+		return 0;
+	}
+
+	int le = strlen(encoding);
+	const int LN = sizeof("Transfer-Encoding:") - 1;
+
+	p = line + LN;
+	while (*p == ' ')p++;
+	return strncmp(encoding, p, le) == 0;
+}
+
+static int get_content_length(const char *buf, size_t len, int def)
+{
+	size_t content_length = 0;
+	const char *line = get_line_by_key(buf, len, "Content-Length: ");
+
+	if (line == NULL) {
+		return def;
+	}
+
+	const int LN = sizeof("Content-Length:") - 1;
+	if (sscanf(line + LN, "%u", &content_length) == 1) {
+		fprintf(stderr, "Content-Length: %d\n", content_length);
+		return content_length;
+	}
+
+	return def;
+}
+
 static void socksproto_init(struct socksproto *up, int sockfd, int lwipfd)
 {
 	up->m_flags = 0;
+	up->use_http = 0;
 	up->proto_flags = 0;
 	waitcb_init(&up->timer, tc_callback, up);
 	waitcb_init(&up->stopper, tc_cleanup, up);
+	slotwait_atstop(&up->stopper);
 
 	up->c.fd = sockfd;
 	up->c.flags = 0;
@@ -145,7 +206,6 @@ static void socksproto_init(struct socksproto *up, int sockfd, int lwipfd)
 
 	up->s.fd = lwipfd;
 	assert(up->s.fd != -1);
-	slotwait_atstop(&up->stopper);
 
 	setnonblock(up->s.fd);
 	up->s.flags = 0;
@@ -229,28 +289,28 @@ enum {
 
 static const int SUPPORTED_PROTO = UNKOWN_PROTO| SOCKV4_PROTO| SOCKV5_PROTO| DIRECT_PROTO | FORWARD_PROTO| HTTP_PROTO;
 
-static void fill_connect_buffer(struct socksproto *up)
+static void fill_connect_buffer(struct sockspeer *p)
 {
 	int len;
 	int count;
 	char *buf;
 
-	if (waitcb_completed(&up->c.rwait) && up->c.len < (int)sizeof(up->c.buf)) {
-		buf = up->c.buf + up->c.off;
-		len = sizeof(up->c.buf) - up->c.len;
-		count = up->c.ops->op_read(up->c.fd, buf, len);
+	if (waitcb_completed(&p->rwait) && p->len < (int)sizeof(p->buf)) {
+		buf = p->buf + p->off;
+		len = sizeof(p->buf) - p->len;
+		count = p->ops->op_read(p->fd, buf, len);
 		switch (count) {
 			case -1:
-				up->c.flags |= NO_MORE_DATA;
+				p->flags |= NO_MORE_DATA;
 				break;
 
 			case 0:
-				up->c.flags |= NO_MORE_DATA;
+				p->flags |= NO_MORE_DATA;
 				break;
 
 			default:
-				waitcb_clear(&up->c.rwait);
-				up->c.len += count;
+				waitcb_clear(&p->rwait);
+				p->len += count;
 				break;
 		}
 	}
@@ -779,7 +839,7 @@ static int http_proto_input(struct socksproto *up)
 	char buf[sizeof(up->c.buf)] = "";
 	char *bound, *port, *line, *p;
 
-	p = (char *)memchr(up->c.buf, '\r', up->c.len);
+	p = (char *)memmem(up->c.buf, up->c.len, "\r\n\r\n", 4);
 	if (p == NULL) {
 		return 0;
 	}
@@ -789,6 +849,14 @@ static int http_proto_input(struct socksproto *up)
 			goto host_not_found;
 		use_post = 1;
 	}
+
+#if 1
+	{
+	char *t = (char *)memmem(up->c.buf, up->c.len, "HTTP/1.1", 8);
+	if (t != NULL)
+		t[7] = '0';
+	}
+#endif
 
 	if (*http_maigc_url != 0) {
 		is_magic_url = !strcmp(buf, http_maigc_url);
@@ -847,6 +915,20 @@ static int http_proto_input(struct socksproto *up)
 		p = up->c.buf + 4 + use_post;
 		memmove(p, p + cutlen, up->c.len + 1);
 
+		//{ strip Proxy Authorization information.
+		p = (char *)get_line_by_key(up->c.buf, up->c.len, "Proxy-Authorization:");
+		if (p != NULL) {
+			char *limit;
+			char *bound = up->c.buf + up->c.len;
+			limit = (char *)memchr(p, '\n', bound - p);
+			if (limit != NULL) {
+				memmove(p, limit + 1, bound - limit - 1);
+				up->c.len -= (limit + 1 - p);
+			}
+		}
+		//}
+		
+		up->use_http = 1;
 		up->s.len = up->s.off = 0;
 		up->m_flags |= DOCONNECTING;
 		up->m_flags |= DIRECT_PROTO;
@@ -1042,6 +1124,88 @@ static void DO_SHUTDOWN(struct sockspeer *p, int cond)
 	return;
 }
 
+static int do_http_forward(struct socksproto *up, 
+		struct sockspeer *f, struct sockspeer *t, int def)
+{
+	int ret;
+	int mask;
+	int changed;
+	const char *p;
+
+	if ((f->flags & GET_LENGTHED) == 0x0) {
+		fill_connect_buffer(f);
+		p = (char *)memmem(f->buf, f->len, "\r\n\r\n", 4);
+		if (p == NULL) {
+			return 0;
+		}
+
+		f->flags |= GET_LENGTHED;
+		f->limit  = get_content_length(f->buf, f->len, def);
+		if (f->limit != -1)
+			f->limit += (p + 4 - f->buf);
+		if (check_transfer_encoding(f->buf, f->len, "chunked"))
+			fprintf(stderr, "Transfer-Encoding \n");
+	}
+
+	do {
+		changed = 0;
+		mask = WRITE_BROKEN;
+		int ll = (f->limit != -1 && f->limit < f->len - f->off)? f->limit: f->len - f->off;
+		if (!(t->flags & mask) && ll > 0) {
+			if (waitcb_completed(&t->wwait)) {
+				ret = t->ops->op_write(t->fd, f->buf + f->off, ll);
+				if (ret == -1 && !t->ops->blocking(t->fd)) {
+					t->flags |= NO_MORE_DATA;
+					t->flags |= WRITE_BROKEN;
+					f->flags |= NO_MORE_DATA;
+					DO_SHUTDOWN(f, t->off == t->len);
+				} else if (ret < ll) {
+					t->debug_write += (ret > 0? ret: 0);
+					if (f->limit != -1)
+						f->limit -= (ret > 0? ret: 0);
+					f->off += (ret > 0? ret: 0);
+					waitcb_clear(&t->wwait);
+					changed = (ret > 0);
+				} else {
+					if (f->limit != -1)
+						f->limit -= (ret > 0? ret: 0);
+					DO_SHUTDOWN(t, (f->flags & NO_MORE_DATA));
+					t->debug_write +=  ret;
+					f->off = f->len = 0;
+					changed = 1;
+				}
+			}
+		}
+
+		mask = NO_MORE_DATA;
+		if (!(f->flags & mask) && f->len < (int)sizeof(f->buf)) {
+			if (waitcb_completed(&f->rwait)) {
+				ret = f->ops->op_read(f->fd, f->buf + f->len, sizeof(f->buf) - f->len);
+				if (ret == -1 && !f->ops->blocking(f->fd)) {
+					f->flags |= NO_MORE_DATA;
+					f->flags |= WRITE_BROKEN;
+					t->flags |= NO_MORE_DATA;
+					DO_SHUTDOWN(t, f->off == f->len);
+				} else if (ret > 0) {
+					f->debug_read += ret;
+					waitcb_clear(&f->rwait);
+					f->len += ret;
+					changed = 1;
+				} else if (ret == 0) {
+					DO_SHUTDOWN(t, f->off == f->len);
+					f->flags |= NO_MORE_DATA;
+				} else {
+					waitcb_clear(&f->rwait);
+					/* EWOULDBLOCK */
+				}
+			}
+		}
+
+	} while (changed);
+
+	return 0;
+}
+
 static int do_data_forward(struct socksproto *up, 
 		struct sockspeer *f, struct sockspeer *t)
 {
@@ -1115,32 +1279,32 @@ static int socksproto_run(struct socksproto *up)
 
 	callout_reset(&up->timer, 60000);
 	if ((up->m_flags & SUPPORTED_PROTO) == NONE_PROTO) {
-		fill_connect_buffer(up);
+		fill_connect_buffer(&up->c);
 		check_proxy_proto(up);
 	}
 
 	if (up->m_flags & FORWARD_PROTO) {
-		fill_connect_buffer(up);
+		fill_connect_buffer(&up->c);
 		forward_proto_input(up);
 	}
 
 	if (up->m_flags & SOCKV4_PROTO) {
-		fill_connect_buffer(up);
+		fill_connect_buffer(&up->c);
 		sockv4_proto_input(up);
 	}
 
 	if (up->m_flags & SOCKV5_PROTO) {
-		fill_connect_buffer(up);
+		fill_connect_buffer(&up->c);
 		sockv5_proto_input(up);
 	}
 
 	if (up->m_flags & HTTPS_PROTO) {
-		fill_connect_buffer(up);
+		fill_connect_buffer(&up->c);
 		https_proto_input(up);
 	}
 
 	if (up->m_flags & HTTP_PROTO) {
-		fill_connect_buffer(up);
+		fill_connect_buffer(&up->c);
 		http_proto_input(up);
 	}
 
@@ -1149,8 +1313,24 @@ static int socksproto_run(struct socksproto *up)
 	}
 
 	if (up->m_flags & DIRECT_PROTO) {
-		do_data_forward(up, &up->s, &up->c);
-		do_data_forward(up, &up->c, &up->s);
+		if (up->use_http) {
+			do_http_forward(up, &up->c, &up->s, 0);
+			do_http_forward(up, &up->s, &up->c, -1);
+		} else  {
+			do_data_forward(up, &up->s, &up->c);
+			do_data_forward(up, &up->c, &up->s);
+		}
+
+		if (up->use_http) {
+			if (up->s.limit == 0 && (up->s.flags & GET_LENGTHED)) {
+				fprintf(stderr, "HTTP PIPELING: %d %d\n", up->c.off, up->c.len);
+				if ((up->c.flags & NO_MORE_DATA) == 0 && renew_http_socks(up)) {
+					tc_callback(up);
+					return 1;
+				}
+				return 0;
+			}
+		}
 
 		mask = NO_MORE_DATA;
 		if ((up->s.flags & mask) != NO_MORE_DATA) {
@@ -1183,6 +1363,39 @@ static int socksproto_run(struct socksproto *up)
 
 	mask = WRITE_BROKEN;
 	return !((up->c.flags & mask) && (up->s.flags & mask));
+}
+
+static int renew_http_socks(struct socksproto *up)
+{
+	int lwipfd;
+	struct sockcb *sockcbp;
+
+	lwipfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (lwipfd == -1) {
+		fprintf(stderr, "lwip create socket failure\n");
+		return 0;
+	}
+
+	sockcbp = sock_attach(lwipfd);
+	if (sockcbp == NULL) {
+		closesocket(lwipfd);
+		return 0;
+	}
+
+	sock_detach(up->s.lwipcbp);
+	closesocket(up->s.fd);
+
+	up->s.fd = lwipfd;
+	setnonblock(up->s.fd);
+	up->s.flags = 0;
+	up->s.off = up->s.len = 0;
+	up->s.ops = &winsock_ops;
+	up->s.debug_read = 0;
+	up->s.debug_write = 0;
+	up->s.lwipcbp = sockcbp;
+
+	up->c.flags = 0;
+	return 1;
 }
 
 void new_tcp_socks(int sockfd)

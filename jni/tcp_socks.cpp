@@ -17,6 +17,7 @@ static int renew_http_socks(struct socksproto *up);
 #define NO_MORE_DATA 1
 #define WRITE_BROKEN 2
 #define GET_LENGTHED 4
+#define FLAG_CHUNKED 8
 
 static int link_count = 0;
 static char http_maigc_url[512] = {
@@ -840,6 +841,9 @@ static int http_proto_input(struct socksproto *up)
 	char *bound, *port, *line, *p;
 
 	p = (char *)memmem(up->c.buf, up->c.len, "\r\n\r\n", 4);
+	if (p == NULL)
+		p = (char *)memmem(up->c.buf, up->c.len, "\n\n", 2);
+
 	if (p == NULL) {
 		return 0;
 	}
@@ -849,14 +853,6 @@ static int http_proto_input(struct socksproto *up)
 			goto host_not_found;
 		use_post = 1;
 	}
-
-#if 1
-	{
-	char *t = (char *)memmem(up->c.buf, up->c.len, "HTTP/1.1", 8);
-	if (t != NULL)
-		t[7] = '0';
-	}
-#endif
 
 	if (*http_maigc_url != 0) {
 		is_magic_url = !strcmp(buf, http_maigc_url);
@@ -900,6 +896,7 @@ static int http_proto_input(struct socksproto *up)
 			strcpy(up->s.buf, proxy_failure_request);
 			up->s.len = strlen(up->s.buf);
 		}
+		up->c.flags |= NO_MORE_DATA;
 		up->s.flags |= WRITE_BROKEN;
 		up->s.flags |= NO_MORE_DATA;
 		up->m_flags |= DIRECT_PROTO;
@@ -1140,40 +1137,60 @@ static int do_http_forward(struct socksproto *up,
 		}
 
 		f->flags |= GET_LENGTHED;
-		f->limit  = get_content_length(f->buf, f->len, def);
-		if (f->limit != -1)
-			f->limit += (p + 4 - f->buf);
-		if (check_transfer_encoding(f->buf, f->len, "chunked"))
-			fprintf(stderr, "Transfer-Encoding \n");
+		if (check_transfer_encoding(f->buf, f->len, "chunked")) {
+			f->flags |= FLAG_CHUNKED;
+			f->limit = (p + 4 - f->buf);
+		} else {
+			f->limit  = get_content_length(f->buf, f->len, def);
+			if (f->limit != -1)
+				f->limit += (p + 4 - f->buf);
+		}
 	}
 
 	do {
 		changed = 0;
 		mask = WRITE_BROKEN;
-		int ll = (f->limit != -1 && f->limit < f->len - f->off)? f->limit: f->len - f->off;
-		if (!(t->flags & mask) && ll > 0) {
-			if (waitcb_completed(&t->wwait)) {
-				ret = t->ops->op_write(t->fd, f->buf + f->off, ll);
-				if (ret == -1 && !t->ops->blocking(t->fd)) {
-					t->flags |= NO_MORE_DATA;
-					t->flags |= WRITE_BROKEN;
-					f->flags |= NO_MORE_DATA;
-					DO_SHUTDOWN(f, t->off == t->len);
-				} else if (ret < ll) {
-					t->debug_write += (ret > 0? ret: 0);
-					if (f->limit != -1)
-						f->limit -= (ret > 0? ret: 0);
-					f->off += (ret > 0? ret: 0);
-					waitcb_clear(&t->wwait);
-					changed = (ret > 0);
-				} else {
-					if (f->limit != -1)
-						f->limit -= (ret > 0? ret: 0);
-					DO_SHUTDOWN(t, (f->flags & NO_MORE_DATA));
-					t->debug_write +=  ret;
-					f->off = f->len = 0;
-					changed = 1;
+		if (f->limit != 0 || (f->flags & FLAG_CHUNKED) == 0) {
+			int ll = (f->limit != -1 && f->limit < f->len - f->off)? f->limit: f->len - f->off;
+			if (!(t->flags & mask) && ll > 0) {
+				if (waitcb_completed(&t->wwait)) {
+					ret = t->ops->op_write(t->fd, f->buf + f->off, ll);
+					if (ret == -1 && !t->ops->blocking(t->fd)) {
+						t->flags |= NO_MORE_DATA;
+						t->flags |= WRITE_BROKEN;
+						f->flags |= NO_MORE_DATA;
+						DO_SHUTDOWN(f, t->off == t->len);
+					} else if (ret < ll) {
+						t->debug_write += (ret > 0? ret: 0);
+						if (f->limit != -1)
+							f->limit -= (ret > 0? ret: 0);
+						f->off += (ret > 0? ret: 0);
+						waitcb_clear(&t->wwait);
+						changed = (ret > 0);
+					} else {
+						if (f->limit != -1)
+							f->limit -= (ret > 0? ret: 0);
+						DO_SHUTDOWN(t, (f->flags & NO_MORE_DATA));
+						t->debug_write +=  ret;
+						f->off = f->len = 0;
+						changed = 1;
+					}
 				}
+			}
+		} else if ((f->flags & FLAG_CHUNKED) == 0) {
+			int lc;
+			char *p;
+
+			if (f->off > 0) {
+				f->len -= f->off;
+				memmove(f->buf, f->buf + f->off, f->len);
+			}
+			p = (char *)memmem(up->c.buf, up->c.len, "\r\n", 2);
+			if (p != NULL && 1 == sscanf(up->c.buf, "%x", &lc)) {
+				fprintf(stderr, "chunked length: %d\n", lc);
+				f->limit = (p + 2 - up->c.buf);
+				f->limit += lc;
+				changed = 1;
 			}
 		}
 
@@ -1382,6 +1399,8 @@ static int renew_http_socks(struct socksproto *up)
 		return 0;
 	}
 
+	waitcb_clear(&up->s.wwait);
+	waitcb_clear(&up->s.rwait);
 	sock_detach(up->s.lwipcbp);
 	closesocket(up->s.fd);
 

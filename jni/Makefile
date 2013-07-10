@@ -1,5 +1,5 @@
 OBJECTS = pstcp_http.o
-SOCKS_OBJ = tcp_listen.o proxy5.o tcp_socks.o
+SOCKS_OBJ = tcp_listen.o proxy5.o tcp_socks.o channel.o
 
 LDFLAGS = -Llibwait
 CXXFLAGS = -Ilibwait/include -D_HTTP_SERVER_ -g 

@@ -18,6 +18,7 @@ static int renew_http_socks(struct socksproto *up);
 #define WRITE_BROKEN 2
 #define GET_LENGTHED 4
 #define FLAG_CHUNKED 8
+#define LASR_CHUNKED 0x10
 
 static int link_count = 0;
 static char http_maigc_url[512] = {
@@ -1144,6 +1145,7 @@ static int do_http_forward(struct socksproto *up,
 			f->limit  = get_content_length(f->buf, f->len, def);
 			if (f->limit != -1)
 				f->limit += (p + 4 - f->buf);
+			f->flags |= LASR_CHUNKED;
 		}
 	}
 
@@ -1177,7 +1179,7 @@ static int do_http_forward(struct socksproto *up,
 					}
 				}
 			}
-		} else if ((f->flags & FLAG_CHUNKED) == 0) {
+		} else if ((f->flags & (FLAG_CHUNKED|LASR_CHUNKED)) == FLAG_CHUNKED) {
 			int lc;
 			char *p;
 
@@ -1190,7 +1192,14 @@ static int do_http_forward(struct socksproto *up,
 				fprintf(stderr, "chunked length: %d\n", lc);
 				f->limit = (p + 2 - up->c.buf);
 				f->limit += lc;
+				if (lc == 0) {
+					f->flags &= ~FLAG_CHUNKED;
+					f->flags |= LASR_CHUNKED;
+				}
 				changed = 1;
+			} else {
+				fprintf(stderr, "chunked not correct length: \n");
+				abort();
 			}
 		}
 

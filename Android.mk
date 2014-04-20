@@ -10,7 +10,7 @@ LOCAL_STATIC_JAVA_LIBRARIES := youmisdk
 include $(BUILD_PACKAGE)
 
 include $(CLEAR_VARS)
-LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := youmisdk:libs/youmi-android_v3.08fix_2012-09-18.jar
+LOCAL_PREBUILT_STATIC_JAVA_LIBRARIES := youmisdk:libs/YoumiSdk_v4.08_2014-04-16.jar
 include $(BUILD_MULTI_PREBUILT)
 
 include $(CLEAR_VARS)

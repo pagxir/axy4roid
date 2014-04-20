@@ -4,8 +4,9 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
-import net.youmi.android.AdView;
 import net.youmi.android.AdManager;
+import net.youmi.android.banner.AdView;
+import net.youmi.android.banner.AdSize;
 import android.net.ConnectivityManager;
 import android.widget.LinearLayout;
 import android.view.ViewGroup.LayoutParams;
@@ -57,10 +58,10 @@ public class Proxy5Activity extends Activity implements OnClickListener {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		AdManager.init(this, "602d0df09489ae35", "b1cc38111305c51a", 30, false);
+		AdManager.getInstance(this).init("602d0df09489ae35", "b1cc38111305c51a", false);
 
 		LinearLayout adViewLayout = (LinearLayout) findViewById(R.id.adViewLayout);
-		adViewLayout.addView(new AdView(this), 
+		adViewLayout.addView(new AdView(this, AdSize.FIT_SCREEN), 
 		new LayoutParams(LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
 		Button start = (Button)findViewById(R.id.start);

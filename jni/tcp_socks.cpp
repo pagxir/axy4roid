@@ -1174,7 +1174,9 @@ static int do_http_forward(struct socksproto *up,
 							f->limit -= (ret > 0? ret: 0);
 						DO_SHUTDOWN(t, (f->flags & NO_MORE_DATA));
 						t->debug_write +=  ret;
-						f->off = f->len = 0;
+						f->off += ret;
+						if (f->off == f->len)
+							f->off = f->len = 0;
 						changed = 1;
 					}
 				}
@@ -1186,20 +1188,19 @@ static int do_http_forward(struct socksproto *up,
 			if (f->off > 0) {
 				f->len -= f->off;
 				memmove(f->buf, f->buf + f->off, f->len);
+				f->off = 0;
 			}
-			p = (char *)memmem(up->c.buf, up->c.len, "\r\n", 2);
-			if (p != NULL && 1 == sscanf(up->c.buf, "%x", &lc)) {
-				fprintf(stderr, "chunked length: %d\n", lc);
-				f->limit = (p + 2 - up->c.buf);
+
+			fill_connect_buffer(f);
+			p = (char *)memmem(f->buf, f->len, "\r\n", 2);
+			if (p != NULL && 1 == sscanf(f->buf, "%x", &lc)) {
+				f->limit = (p + 2 - f->buf);
 				f->limit += lc;
 				if (lc == 0) {
 					f->flags &= ~FLAG_CHUNKED;
 					f->flags |= LASR_CHUNKED;
 				}
 				changed = 1;
-			} else {
-				fprintf(stderr, "chunked not correct length: \n");
-				abort();
 			}
 		}
 
@@ -1348,13 +1349,15 @@ static int socksproto_run(struct socksproto *up)
 		}
 
 		if (up->use_http) {
-			if (up->s.limit == 0 && (up->s.flags & GET_LENGTHED)) {
+			if (up->s.limit == 0 && (up->s.flags & LASR_CHUNKED) && (up->s.flags & GET_LENGTHED)) {
 				fprintf(stderr, "HTTP PIPELING: %d %d\n", up->c.off, up->c.len);
+#if 0
 				if ((up->c.flags & NO_MORE_DATA) == 0 && renew_http_socks(up)) {
 					tc_callback(up);
 					return 1;
 				}
-				return 0;
+#endif
+				return 1;
 			}
 		}
 

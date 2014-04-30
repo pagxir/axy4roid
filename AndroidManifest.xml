@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ovenstone.axy4roid"
     android:versionCode="1"
-    android:versionName="1.1" >
+    android:versionName="1.2" >
 
     <uses-sdk android:minSdkVersion="10" />
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -14,9 +14,10 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+	<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.GET_TASKS"/>
 
     <application
         android:icon="@drawable/ic_launcher"
@@ -108,5 +109,44 @@
                 <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
+        <!-- 添加必须的组件 -->
+        <activity
+	        android:name="net.youmi.android.AdBrowser"
+	        android:configChanges="keyboard"            
+	        android:theme="@android:style/Theme.Light.NoTitleBar" >
+	    </activity>
+	    <service
+	        android:name="net.youmi.android.AdService"
+	        android:exported="false" >
+	    </service>
+	    <receiver 
+	        android:name="net.youmi.android.AdReceiver" >
+	        <intent-filter>
+	            <action android:name="android.intent.action.PACKAGE_ADDED" />
+	            <data android:scheme="package" />
+	        </intent-filter>
+	    </receiver> 
+	    
+	    <!-- 配置SmartBanner -->
+     	<activity
+		    android:name="net.youmi.android.SmartBannerActivity"
+		    android:configChanges="keyboard">        
+	    </activity>
+	    <service
+		    android:name="net.youmi.android.SmartBannerService"
+		    android:exported="false">        
+	    </service>
+
+		<!-- 配置OffersReceiver -->
+		<receiver
+			android:name="net.youmi.android.offers.OffersReceiver"
+			android:exported="false" >
+		</receiver>
+
+	    <!-- 有米渠道号(可选配置) 渠道号不能带空格，类型为整数 -->
+        <meta-data
+            android:name="YOUMI_CHANNEL"
+            android:value="0" >
+        </meta-data>
     </application>
 </manifest>

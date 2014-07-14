@@ -26,7 +26,7 @@ static char http_maigc_url[512] = {
 };
 
 static char http_authorization[512] = {
-	"dXNlcjpwYXNzd29yZA=="
+	"" //dXNlcjpwYXNzd29yZA=="
 };
 
 static char socks5_user_password[514] = {
@@ -315,6 +315,8 @@ static void fill_connect_buffer(struct sockspeer *p)
 				p->len += count;
 				break;
 		}
+	} else if (p->len == (int)sizeof(p->buf)) {
+		fprintf(stderr, "buffer is full\n");
 	}
 }
 
@@ -850,8 +852,10 @@ static int http_proto_input(struct socksproto *up)
 	}
 
 	if (sscanf(up->c.buf, "GET %s HTTP/1.%*d\r\n", buf) != 1) {
-		if (sscanf(up->c.buf, "POST %s HTTP/1.%*d\r\n", buf) != 1)
+		if (sscanf(up->c.buf, "POST %s HTTP/1.%*d\r\n", buf) != 1) {
+			fprintf(stderr, "4x HTTP ERRROR\n");
 			goto host_not_found;
+		}
 		use_post = 1;
 	}
 
@@ -860,6 +864,7 @@ static int http_proto_input(struct socksproto *up)
 	}
 
 	if (strncmp(buf, "http://", 7) != 0) {
+		fprintf(stderr, "3x HTTP ERRROR\n");
 		goto host_not_found;
 	}
 
@@ -869,6 +874,7 @@ static int http_proto_input(struct socksproto *up)
 		*p = 0;
 	} else {
 		/* illegal url found. */
+		fprintf(stderr, "1x HTTP ERRROR\n");
 		goto host_not_found;
 	}
 
@@ -879,7 +885,8 @@ static int http_proto_input(struct socksproto *up)
 		port = bound;
 	}
 
-	if (get_addr_by_name(line, &in_addr1)) {
+	if (-1 == get_addr_by_name(line, &in_addr1)) {
+		fprintf(stderr, "2x xx HTTP ERRROR %s\n", line);
 		goto host_not_found;
 	}
 
@@ -904,7 +911,7 @@ static int http_proto_input(struct socksproto *up)
 		return 0;
 	}
 
-	fprintf(stderr, "connect to %d\n", link_count);
+	fprintf(stderr, "http connect to %d\n", link_count);
 	error = connect(up->s.fd, (struct sockaddr *)&up->addr_in1, sizeof(up->addr_in1));
 	if (error == 0 || error_equal(up->s.fd, EINPROGRESS)) {
 		assert(up->c.len > cutlen);
@@ -934,6 +941,7 @@ static int http_proto_input(struct socksproto *up)
 	}
 
 host_not_found:
+	fprintf(stderr, "HTTP ERRROR\n");
 	up->c.flags |= WRITE_BROKEN;
 	up->s.flags |= WRITE_BROKEN;
 	up->m_flags |= UNKOWN_PROTO;
@@ -963,6 +971,7 @@ static int https_proto_input(struct socksproto *up)
 	}
 
 	if (sscanf(up->c.buf, "CONNECT %s HTTP/1.%*d\r\n", buf) != 1) {
+		fprintf(stderr, "1x HTTP ERRROR\n");
 		goto host_not_found;
 	}
 
@@ -974,6 +983,7 @@ static int https_proto_input(struct socksproto *up)
 	}
 
 	if (get_addr_by_name(buf, &in_addr1)) {
+		fprintf(stderr, "2x HTTP ERRROR\n");
 		goto host_not_found;
 	}
 
@@ -1141,6 +1151,7 @@ static int do_http_forward(struct socksproto *up,
 		if (check_transfer_encoding(f->buf, f->len, "chunked")) {
 			f->flags |= FLAG_CHUNKED;
 			f->limit = (p + 4 - f->buf);
+			fprintf(stderr, "header length: %d\n", f->limit);
 		} else {
 			f->limit  = get_content_length(f->buf, f->len, def);
 			if (f->limit != -1)
@@ -1173,8 +1184,8 @@ static int do_http_forward(struct socksproto *up,
 						if (f->limit != -1)
 							f->limit -= (ret > 0? ret: 0);
 						DO_SHUTDOWN(t, (f->flags & NO_MORE_DATA));
-						t->debug_write +=  ret;
-						f->off += ret;
+						t->debug_write +=  (ret > 0? ret: 0);
+						f->off += (ret > 0? ret: 0);
 						if (f->off == f->len)
 							f->off = f->len = 0;
 						changed = 1;
@@ -1192,9 +1203,10 @@ static int do_http_forward(struct socksproto *up,
 			}
 
 			fill_connect_buffer(f);
+			assert(f->limit == 0);
 			p = (char *)memmem(f->buf, f->len, "\r\n", 2);
 			if (p != NULL && 1 == sscanf(f->buf, "%x", &lc)) {
-				f->limit = (p + 2 - f->buf);
+				f->limit = (p + 4 - f->buf);
 				f->limit += lc;
 				if (lc == 0) {
 					f->flags &= ~FLAG_CHUNKED;
@@ -1202,8 +1214,9 @@ static int do_http_forward(struct socksproto *up,
 				}
 				changed = 1;
 			} else {
-				fprintf(stderr, "chunked not correct length: \n");
-				abort();
+				waitcb_clear(&f->rwait);
+				if (p != NULL) abort();
+				break;
 			}
 		}
 
@@ -1354,13 +1367,14 @@ static int socksproto_run(struct socksproto *up)
 		if (up->use_http) {
 			if (up->s.limit == 0 && (up->s.flags & LASR_CHUNKED) && (up->s.flags & GET_LENGTHED)) {
 				fprintf(stderr, "HTTP PIPELING: %d %d\n", up->c.off, up->c.len);
+
 #if 0
 				if ((up->c.flags & NO_MORE_DATA) == 0 && renew_http_socks(up)) {
-					tc_callback(up);
-					return 1;
+					return socksproto_run(up);
 				}
 #endif
-				return 1;
+
+				return 0;
 			}
 		}
 

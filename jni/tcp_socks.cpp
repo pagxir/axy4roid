@@ -298,7 +298,7 @@ static void fill_connect_buffer(struct sockspeer *p)
 	char *buf;
 
 	if (waitcb_completed(&p->rwait) && p->len < (int)sizeof(p->buf)) {
-		buf = p->buf + p->off;
+		buf = p->buf + p->len;
 		len = sizeof(p->buf) - p->len;
 		count = p->ops->op_read(p->fd, buf, len);
 		switch (count) {
